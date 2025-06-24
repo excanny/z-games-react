@@ -1,10 +1,11 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
-import './App.css'
-import Home from './components/Home'
-import AdminLogin from './components/AdminLogin'
-import AdminDashboard  from './components/AdminDashboard'
-import Leaderboard from './components/Leaderboard'
-import Scoreboard from './components/Scoreboard'
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import './App.css';
+import Home from './components/Home';
+import AdminLogin from './components/AdminLogin';
+import AdminDashboard  from './components/AdminDashboard';
+import Leaderboard from './components/Leaderboard';
+import Scoreboard from './components/Scoreboard';
+import SingleGame from './components/SingleGame';
 import NotFound  from './components/NotFound';
 
 function App() {
@@ -30,13 +31,10 @@ function App() {
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/admin-dashboard-leaderboard" element={<Leaderboard />} />
             <Route path="/scoreboard" element={<Scoreboard />} />
+            <Route path="/game/:gameId" element={<SingleGame />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
-
-        <footer className="footer">
-          <p>&copy; 2025 Z Games.</p>
-        </footer>
       </div>
     </Router>
   )

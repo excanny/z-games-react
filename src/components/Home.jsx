@@ -1,27 +1,62 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 const Home = () => {
     const [gameCode, setGameCode] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
      const navigate = useNavigate();
     //const [showScoreboard, setShowScoreboard] = useState(false);
-    
-    // Game master's code - you can change this to whatever code you want
-    const MASTER_CODE = 'GAME2024';
-    
-    const handleCodeSubmit = () => {
-        if (gameCode.trim().toUpperCase() === MASTER_CODE) {
-            setErrorMessage('');
-            //setShowScoreboard(true);
-            //Navigate('/admin-dashboard-leaderboard'); // Redirect to the leaderboard page
-            navigate("/scoreboard");
+ 
+    // const handleCodeSubmit = () => {
+    //     if (gameCode.trim().toUpperCase() === MASTER_CODE) {
+    //         setErrorMessage('');
+    //         //setShowScoreboard(true);
+    //         //Navigate('/admin-dashboard-leaderboard'); // Redirect to the leaderboard page
+    //         navigate("/scoreboard");
 
-        } else {
-            setErrorMessage('Invalid game code. Please try again.');
-            setGameCode('');
+    //     } else {
+    //         setErrorMessage('Invalid game code. Please try again.');
+    //         setGameCode('');
+    //     }
+    // };
+
+   
+
+const handleCodeSubmit = async () => {
+    try {
+        setErrorMessage(''); // Clear any previous errors
+        
+        // Make API call to validate the game code
+        const response = await axios.get(`http://localhost:5000/api/games/code/${gameCode.trim().toUpperCase()}`);
+        
+        // If the API call is successful, navigate to scoreboard
+        if (response.status === 200) {
+            navigate("/scoreboard");
         }
-    };
+        
+    } catch (error) {
+        // Handle different types of errors
+        if (error.response) {
+            // Server responded with error status
+            if (error.response.status === 404) {
+                setErrorMessage('Invalid game code. Please try again.');
+            } else if (error.response.status === 400) {
+                setErrorMessage('Bad request. Please check your game code.');
+            } else {
+                setErrorMessage('Server error. Please try again later.');
+            }
+        } else if (error.request) {
+            // Network error
+            setErrorMessage('Network error. Please check your connection.');
+        } else {
+            // Other error
+            setErrorMessage('An unexpected error occurred. Please try again.');
+        }
+        
+        setGameCode(''); // Clear the game code input
+    }
+};
     
     const handleKeyPress = (e) => {
         if (e.key === 'Enter') {
