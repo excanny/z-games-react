@@ -30,7 +30,7 @@ function App() {
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/admin-dashboard-leaderboard" element={<Leaderboard />} />
-            <Route path="/scoreboard" element={<Scoreboard />} />
+            <Route path="/scoreboard/:gameId" element={<Scoreboard />} />
             <Route path="/game/:gameId" element={<SingleGame />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
