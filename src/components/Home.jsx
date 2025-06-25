@@ -31,7 +31,7 @@ const Home = () => {
             
             // If the API call is successful, navigate to scoreboard
             if (response.status === 200) {
-                navigate("/scoreboard", { 
+                navigate("/scoreboard/" + response.data.data._id, { 
                     state: { gameCode: gameCode.trim().toUpperCase() } 
                 });
             }

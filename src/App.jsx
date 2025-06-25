@@ -8,9 +8,11 @@ import Scoreboard from './components/Scoreboard';
 import SingleGame from './components/SingleGame';
 import NotFound  from './components/NotFound';
 
+
 function App() {
 
   return (
+
     <Router>
       <div className="App">
         {/* <nav className="navbar">
@@ -37,6 +39,7 @@ function App() {
         </main>
       </div>
     </Router>
+
   )
 }
 
