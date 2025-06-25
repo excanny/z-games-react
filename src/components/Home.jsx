@@ -1,154 +1,175 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import ZGamesLogo from '../assets/Z Games logo with illustration.png';
 
 const Home = () => {
     const [gameCode, setGameCode] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
-     const navigate = useNavigate();
-    //const [showScoreboard, setShowScoreboard] = useState(false);
- 
-    // const handleCodeSubmit = () => {
-    //     if (gameCode.trim().toUpperCase() === MASTER_CODE) {
-    //         setErrorMessage('');
-    //         //setShowScoreboard(true);
-    //         //Navigate('/admin-dashboard-leaderboard'); // Redirect to the leaderboard page
-    //         navigate("/scoreboard");
+    const [isLoading, setIsLoading] = useState(false);
+    const navigate = useNavigate();
 
-    //     } else {
-    //         setErrorMessage('Invalid game code. Please try again.');
-    //         setGameCode('');
-    //     }
-    // };
-
-   
-
-const handleCodeSubmit = async () => {
-    try {
-        setErrorMessage(''); // Clear any previous errors
-        
-        // Make API call to validate the game code
-        const response = await axios.get(`http://localhost:5000/api/games/code/${gameCode.trim().toUpperCase()}`);
-        
-        // If the API call is successful, navigate to scoreboard
-        if (response.status === 200) {
-            navigate("/scoreboard");
-        }
-        
-    } catch (error) {
-        // Handle different types of errors
-        if (error.response) {
-            // Server responded with error status
-            if (error.response.status === 404) {
-                setErrorMessage('Invalid game code. Please try again.');
-            } else if (error.response.status === 400) {
-                setErrorMessage('Bad request. Please check your game code.');
-            } else {
-                setErrorMessage('Server error. Please try again later.');
+    const handleCodeSubmit = async () => {
+        // Prevent submission if already loading or if game code is empty
+        if (isLoading || !gameCode.trim()) {
+            if (!gameCode.trim()) {
+                setErrorMessage('Please enter a game code.');
             }
-        } else if (error.request) {
-            // Network error
-            setErrorMessage('Network error. Please check your connection.');
-        } else {
-            // Other error
-            setErrorMessage('An unexpected error occurred. Please try again.');
+            return;
         }
+
+        setIsLoading(true);
         
-        setGameCode(''); // Clear the game code input
-    }
-};
-    
+        try {
+            setErrorMessage(''); // Clear any previous errors
+            
+            // Make API call to validate the game code
+            const response = await axios.get(
+                `http://localhost:5000/api/games/code/${gameCode.trim().toUpperCase()}`,
+                { timeout: 10000 } // 10 second timeout
+            );
+            
+            // If the API call is successful, navigate to scoreboard
+            if (response.status === 200) {
+                navigate("/scoreboard", { 
+                    state: { gameCode: gameCode.trim().toUpperCase() } 
+                });
+            }
+            
+        } catch (error) {
+            // Handle different types of errors
+            if (error.response) {
+                // Server responded with error status
+                if (error.response.status === 404) {
+                    setErrorMessage('Invalid game code. Please try again or contact the games master.');
+                } else if (error.response.status === 400) {
+                    setErrorMessage('Bad request. Please check your game code.');
+                } else {
+                    setErrorMessage('Server error. Please try again later.');
+                }
+            } else if (error.request) {
+                // Network error
+                setErrorMessage('Network error. Please check your connection.');
+            } else if (error.code === 'ECONNABORTED') {
+                // Timeout error
+                setErrorMessage('Request timed out. Please try again.');
+            } else {
+                // Other error
+                setErrorMessage('An unexpected error occurred. Please try again.');
+            }
+            
+            // Clear the game code input only on error
+            setGameCode('');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Handle Enter key press
     const handleKeyPress = (e) => {
         if (e.key === 'Enter') {
             handleCodeSubmit();
         }
     };
-    
-    // const resetToHome = () => {
-    //     setShowScoreboard(false);
-    //     setGameCode('');
-    //     setErrorMessage('');
-    // };
-    
-    // Scoreboard component
-   
-    
-    // // Show scoreboard if code is valid
-    // if (showScoreboard) {
-    //     return <Scoreboard />;
-    // }
+
+    // Handle input change with validation
+    const handleInputChange = (e) => {
+        const value = e.target.value.toUpperCase();
+        // Only allow alphanumeric characters
+        const sanitizedValue = value.replace(/[^A-Z0-9]/g, '');
+        setGameCode(sanitizedValue);
+        
+        // Clear error message when user starts typing
+        if (errorMessage) {
+            setErrorMessage('');
+        }
+    };
     
     // Main home page
     return (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-            <h1>Welcome to Z-Games</h1>
-            <p>Your ultimate destination for gaming news, reviews, and updates!</p>
-            
-            <div style={{ 
-                maxWidth: '400px', 
-                margin: '40px auto', 
-                padding: '30px', 
-                border: '2px solid #007bff', 
-                borderRadius: '10px',
-                backgroundColor: '#f8f9fa'
-            }}>
-                <h2>Enter Game Code</h2>
-                <p style={{ marginBottom: '20px', color: '#666' }}>
-                    Enter the code provided by the games master to access the scoreboard
-                </p>
-                
-                <input
-                    type="text"
-                    value={gameCode}
-                    onChange={(e) => setGameCode(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Enter game code"
-                    style={{
-                        width: '100%',
-                        padding: '12px',
-                        fontSize: '16px',
-                        border: '1px solid #ddd',
-                        borderRadius: '5px',
-                        marginBottom: '15px',
-                        textAlign: 'center',
-                        textTransform: 'uppercase'
-                    }}
-                />
-                
-                <button
-                    onClick={handleCodeSubmit}
-                    style={{
-                        backgroundColor: '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        padding: '12px 30px',
-                        fontSize: '16px',
-                        borderRadius: '5px',
-                        cursor: 'pointer',
-                        width: '100%'
-                    }}
-                    onMouseOver={(e) => e.target.style.backgroundColor = '#218838'}
-                    onMouseOut={(e) => e.target.style.backgroundColor = '#28a745'}
-                >
-                    Enter
-                </button>
-                
-                {errorMessage && (
-                    <div style={{
-                        marginTop: '15px',
-                        padding: '10px',
-                        backgroundColor: '#f8d7da',
-                        color: '#721c24',
-                        border: '1px solid #f5c6cb',
-                        borderRadius: '5px'
-                    }}>
-                        ❌ {errorMessage}
+        <div className="min-h-screen w-full bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 flex items-center justify-center px-4 py-8">
+            <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden flex">
+                {/* Left Image Section */}
+                <div className="flex-1 bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center p-8 relative">
+                    <img
+                        src={ZGamesLogo}
+                        alt="Z Games Logo"
+                        className="max-w-full max-h-full object-contain"
+                    />
+                    {/* Bottom Left Geometric Accent */}
+                    <div className="absolute bottom-0 left-0 w-16 h-16 bg-blue-900 rotate-45 translate-x-1/2 translate-y-1/2" />
+                </div>
+
+                {/* Right Content Section */}
+                <div className="flex-1 bg-slate-50 relative p-10 flex flex-col justify-center">
+                    {/* Top Right Geometric Accent */}
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-blue-800 rounded-bl-full" />
+
+                    {/* Company Name */}
+                    <p className="text-slate-500 text-sm mb-3">Blak Comms.</p>
+
+                    {/* Main Heading */}
+                    <h1 className="text-4xl font-extrabold text-slate-800 leading-tight mb-2">
+                        Welcome to <span className="text-blue-800">Z-Games</span>
+                    </h1>
+
+                    {/* Subtitle */}
+                    <p className="text-lg italic text-slate-600 mb-6">
+                        Your ultimate destination for in-door party games!
+                    </p>
+
+                    {/* Game Code Input */}
+                    <div className="mb-2">
+                        <label
+                            htmlFor="gameCode"
+                            className="block text-sm text-slate-700 font-semibold mb-2"
+                        >
+                            Enter Game Code:
+                        </label>
+                        <div className="flex">
+                            <input
+                                type="text"
+                                id="gameCode"
+                                placeholder="ENTER GAME CODE"
+                                className={`flex-1 px-4 py-3 border rounded-l-md text-center text-base tracking-wider uppercase focus:outline-none focus:ring-2 transition-all ${
+                                    errorMessage 
+                                        ? 'border-red-300 focus:ring-red-300' 
+                                        : 'border-slate-300 focus:ring-blue-300'
+                                }`}
+                                value={gameCode}
+                                onChange={handleInputChange}
+                                onKeyPress={handleKeyPress}
+                                disabled={isLoading}
+                                autoComplete="off"
+                            />
+                            <button 
+                                className={`px-6 py-3 text-white text-sm font-bold uppercase rounded-r-md transition-all ${
+                                    isLoading || !gameCode.trim()
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-gradient-to-br from-blue-700 to-blue-500 hover:shadow-md hover:-translate-y-0.5'
+                                }`}
+                                onClick={handleCodeSubmit}
+                                disabled={isLoading || !gameCode.trim()}
+                            >
+                                {isLoading ? 'Loading...' : 'Enter'}
+                            </button>
+                        </div>
                     </div>
-                )}
-            </div>
-            
-            <div style={{ marginTop: '30px', fontSize: '14px', color: '#666' }}>
-                <p>Need a game code? Contact your games master!</p>
+
+                    {/* Error Message */}
+                    {errorMessage && (
+                        <div className="mb-1 p-1 bg-red-100 border border-red-300 rounded-md">
+                            <p className="text-red-700 text-sm">{errorMessage}</p>
+                        </div>
+                    )}
+
+                    {/* Footer Bar */}
+                    <div className="mt-3">
+                        <div className="bg-slate-800 text-white text-sm rounded-md px-5 py-2 shadow flex items-center justify-center">
+                            <span className="font-normal">Need a game code? Contact the games master!</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

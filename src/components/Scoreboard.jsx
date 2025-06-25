@@ -1,5 +1,4 @@
 import React from 'react';
-//import { Trophy, Medal, Award, Star } from 'lucide-react';
 
 const Scoreboard = () => {
   const players = [
@@ -68,9 +67,9 @@ const Scoreboard = () => {
                         <span className="text-3xl font-bold text-slate-700 w-12 text-center">
                           {getRankDisplay(player.rank)}
                         </span>
-                        {isTopThree && (
+                        {/* {isTopThree && (
                           <Icon className={`${player.color} animate-pulse`} size={24} />
-                        )}
+                        )} */}
                       </div>
                       
                       {/* Player Info */}
