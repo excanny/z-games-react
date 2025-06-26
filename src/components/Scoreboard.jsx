@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 import { useParams } from 'react-router-dom';
 
 //const socket = io('http://localhost:5000');
-const socket = io('https://z-games.onrender.com');
+const socket = io('wss://z-games.onrender.com');
 
 const Scoreboard = () => {
   const [gameData, setGameData] = useState(null);
