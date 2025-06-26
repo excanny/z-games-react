@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from "axios";
+import axiosClient from "../utils/axiosClient"; 
 
 const Leaderboard = () => {
   const [selectedGame, setSelectedGame] = useState('');
@@ -20,7 +20,7 @@ const Leaderboard = () => {
 
   const fetchGames = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/games');
+      const response = await axiosClient.get('/games');
       setGames(response.data.data);
       
       // Set the active game as selected by default
@@ -37,7 +37,7 @@ const Leaderboard = () => {
 
   const getLeaderboardData = async (gameId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/games/${gameId}/leaderboard`);
+      const response = await axiosClient.get(`/games/${gameId}/leaderboard`);
       // Update to handle the new response structure
       setLeaderboardData(response.data.data.leaderboard);
       setLongestStreak(response.data.data.longestStreak);

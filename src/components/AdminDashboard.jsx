@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import GameManager from "./GameManager";
+import axiosClient from "../utils/axiosClient"; 
 
 const AdminDashboard = () => {
     const [games, setGames] = useState([]);
@@ -9,27 +9,63 @@ const AdminDashboard = () => {
     const [participants, setParticipants] = useState([]);
     const [gameForm, setGameForm] = useState({
       name: '',
-      description: '',
-      participantName: '',
-      participantAvatar: 'fox',
-      participantColor: '#FF5733'
+      description: ''
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [bulkParticipants, setBulkParticipants] = useState('');
+    const [participantsToAdd, setParticipantsToAdd] = useState([]);
+    
+    // Loading states (added from SingleGame)
+    const [loading, setLoading] = useState(true);
+    const [longLoading, setLongLoading] = useState(false);
+    const [error, setError] = useState(null);
+    
     const gameManagerRef = React.useRef();
+
+    // Available avatars and colors (matching SingleGame)
+    const availableAvatars = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦄'];
+    const availableColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43', '#10AC84', '#EE5A24', '#0984E3', '#A29BFE', '#FD79A8', '#E17055', '#81ECEC', '#74B9FF', '#A29BFE', '#FD79A8'];
 
     // Fetch games on component mount
     useEffect(() => {
-      fetchGames();
+      const initializeData = async () => {
+        setLoading(true);
+        setError(null);
+        setLongLoading(false);
+        
+        try {
+          await fetchGames();
+        } catch (err) {
+          console.error('Error initializing dashboard:', err);
+          setError(err.message || 'Failed to load dashboard data');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      initializeData();
+
+      // Set up timer for long loading indicator (matching SingleGame)
+      const timer = setTimeout(() => {
+        setLongLoading(true);
+      }, 10000);
+
+      return () => {
+        clearTimeout(timer);
+      };
     }, []);
 
     // Fetch games from API
     const fetchGames = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/games');
-        setGames(response.data.data || response.data || []);
+        const response = await axiosClient.get('/games');
+        const gamesData = response.data.data || response.data || [];
+        console.log('Fetched games:', gamesData); // Debug log
+        setGames(gamesData);
       } catch (error) {
         console.error('Error fetching games:', error);
         setGames([]);
+        throw error; // Re-throw to be caught by useEffect
       }
     };
 
@@ -47,12 +83,17 @@ const AdminDashboard = () => {
     const createGameFromModal = async (gameData) => {
       setIsSubmitting(true);
       try {
-        const response = await axios.post('http://localhost:5000/api/games', gameData);
+        const response = await axiosClient.post('/games', gameData);
+        console.log('API Response:', response); // Debug log
         
-        // Update local state immediately
-        setGames(prev => [...prev, response.data]);
+        // Handle different response structures consistently
+        const newGame = response.data.data || response.data;
+        console.log('New game data:', newGame); // Debug log
         
-        return response.data;
+        // Refresh the games list from server to ensure we have the latest data
+        await fetchGames();
+        
+        return newGame;
       } catch (error) {
         console.error('Error creating game from modal:', error);
         throw error;
@@ -63,11 +104,6 @@ const AdminDashboard = () => {
   
     const selectGame = (game) => {
       setSelectedGame(game);
-    };
-  
-    const updateGame = (updatedGame) => {
-      setGames(games.map(g => g.id === updatedGame.id ? updatedGame : g));
-      setSelectedGame(updatedGame);
     };
   
     const deleteGame = (gameId) => {
@@ -84,12 +120,11 @@ const AdminDashboard = () => {
     const closeModal = () => {
       setIsModalOpen(false);
       setParticipants([]);
+      setParticipantsToAdd([]);
+      setBulkParticipants('');
       setGameForm({
         name: '',
-        description: '',
-        participantName: '',
-        participantAvatar: 'fox',
-        participantColor: '#FF5733'
+        description: ''
       });
       setIsSubmitting(false);
     };
@@ -101,39 +136,58 @@ const AdminDashboard = () => {
       }));
     };
 
-    const addParticipant = () => {
-      if (gameForm.participantName.trim()) {
-        // Check for duplicate names
-        const nameExists = participants.some(p => 
-          p.name.toLowerCase() === gameForm.participantName.trim().toLowerCase()
-        );
-        
-        if (nameExists) {
-          alert('A participant with this name already exists!');
-          return;
-        }
-
-        const newParticipant = {
-          id: Date.now() + Math.random(),
-          name: gameForm.participantName.trim(),
-          avatar: gameForm.participantAvatar,
-          color: gameForm.participantColor
-        };
-        setParticipants(prev => [...prev, newParticipant]);
-        setGameForm(prev => ({
-          ...prev,
-          participantName: '',
-          participantAvatar: 'fox',
-          participantColor: '#FF5733'
-        }));
+    // Process bulk participant names input
+    const processBulkParticipantNames = () => {
+      if (!bulkParticipants.trim()) {
+        alert('Please enter participant names'); 
+        return;
       }
+
+      const participantNames = bulkParticipants.split('\n').filter(name => name.trim());
+      const newParticipantsToAdd = participantNames.map((name, index) => ({
+        id: Date.now() + index,
+        name: name.trim(),
+        avatar: availableAvatars[index % availableAvatars.length], // Cycle through avatars
+        color: availableColors[index % availableColors.length] // Cycle through colors
+      }));
+
+      setParticipantsToAdd(newParticipantsToAdd);
+      setBulkParticipants('');
+    };
+
+    // Update individual participant details
+    const updateParticipantDetails = (participantId, field, value) => {
+      setParticipantsToAdd(prev => 
+        prev.map(participant => 
+          participant.id === participantId ? { ...participant, [field]: value } : participant
+        )
+      );
+    };
+
+    // Remove participant from the list
+    const removeParticipantFromList = (participantId) => {
+      setParticipantsToAdd(prev => prev.filter(participant => participant.id !== participantId));
+    };
+
+    // Confirm and add participants to the final list
+    const confirmParticipants = () => {
+      if (participantsToAdd.length === 0) {
+        alert('No participants to add');
+        return;
+      }
+
+      // Add participants to the main participants list
+      setParticipants(prev => [...prev, ...participantsToAdd]);
+      
+      // Clear the temporary list
+      setParticipantsToAdd([]);
     };
 
     const removeParticipant = (participantId) => {
       setParticipants(prev => prev.filter(p => p.id !== participantId));
     };
 
-    // Fixed submitGame function to use direct API call
+    // Fixed submitGame function with better error handling and refresh
     const submitGame = async () => {
       if (gameForm.name.trim() && participants.length > 0) {
         try {
@@ -143,11 +197,19 @@ const AdminDashboard = () => {
             participants: participants
           };
 
+          console.log('Submitting game data:', gameData); // Debug log
+
           // Use direct API call instead of going through GameManager
           await createGameFromModal(gameData);
           
           // Close modal and reset form
           closeModal();
+          
+          // Force GameManager to re-render by updating a key or triggering refresh
+          if (gameManagerRef.current && gameManagerRef.current.refreshGames) {
+            gameManagerRef.current.refreshGames();
+          }
+          
         } catch (error) {
           console.error('Error creating game:', error);
           alert('Failed to create game. Please try again.');
@@ -159,12 +221,60 @@ const AdminDashboard = () => {
 
     // Helper function to get avatar emoji (matching GameManager)
     const getAvatarEmoji = (avatar) => {
+      // For the new system, avatars are already emojis
+      if (typeof avatar === 'string' && avatar.length <= 2) {
+        return avatar;
+      }
+      
+      // Fallback for old avatar system
       const avatarMap = {
         fox: '🦊', cat: '🐱', dog: '🐶', bear: '🐻',
         rabbit: '🐰', wolf: '🐺', owl: '🦉', dragon: '🐉'
       };
       return avatarMap[avatar] || '🎮';
     };
+
+    // Loading state (matching SingleGame)
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center text-center">
+          <div>
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p>Loading dashboard...</p>
+            {longLoading && (
+              <p className="text-red-500 mt-2">This is taking longer than expected. Please check your connection.</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Error state (matching SingleGame)
+    if (error) {
+      return (
+        <div className="min-h-screen flex items-center justify-center text-center">
+          <div>
+            <div className="text-6xl mb-4">❌</div>
+            <h2 className="text-2xl font-bold mb-2">Error loading dashboard</h2>
+            <p className="mb-4">{error}</p>
+            <div className="mt-4">
+              <button 
+                onClick={() => window.location.reload()}
+                className="text-blue-600 hover:underline mr-4"
+              >
+                🔄 Retry
+              </button>
+              <button 
+                onClick={() => window.location.href = '/'}
+                className="text-blue-600 hover:underline"
+              >
+                ⬅️ Back to Home
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
   
     const totalGames = games.length;
     const totalPlayers = games.reduce((acc, game) => acc + (game.participants?.length || 0), 0);
@@ -228,7 +338,7 @@ const AdminDashboard = () => {
        {/* Modal */}
 {isModalOpen && (
   <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 relative animate-fade-in-down">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 relative animate-fade-in-down">
       
       {/* Close Button */}
       <button 
@@ -243,7 +353,7 @@ const AdminDashboard = () => {
       <h2 className="text-2xl font-semibold text-blue-800 mb-4 text-center">Create New Game</h2>
       
       {/* Game Info */}
-      <div className="space-y-3">
+      <div className="space-y-3 mb-6">
         <input 
           type="text" 
           value={gameForm.name}
@@ -263,77 +373,124 @@ const AdminDashboard = () => {
       </div>
       
       {/* Participants Section */}
-      <div className="mt-6 border-t pt-4">
-        <h3 className="text-lg font-semibold text-green-600 text-center">
+      <div className="border-t pt-4">
+        <h3 className="text-lg font-semibold text-green-600 text-center mb-4">
           Add Participants (<span>{participants.length}</span>) <span className="text-red-500 text-sm font-normal">*Required</span>
         </h3>
         
-        {/* Input Group with Labels */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-          
-          {/* Participant Name */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1 text-gray-700">Name</label>
-            <input 
-              type="text" 
-              value={gameForm.participantName}
-              onChange={(e) => handleInputChange('participantName', e.target.value)}
-              placeholder="Team/Individual Name" 
-              className="border border-gray-300 rounded-lg px-3 py-2"
-              disabled={isSubmitting}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addParticipant();
-                }
-              }}
-            />
+        {participantsToAdd.length === 0 ? (
+          <>
+            {/* Bulk Entry */}
+            <div className="bg-green-50 rounded-lg p-4 mb-4">
+              <h4 className="font-medium text-green-800 mb-3">Add Multiple Participants</h4>
+              <p className="text-sm text-gray-600 mb-3">Enter participant names, one per line:</p>
+              <textarea
+                value={bulkParticipants}
+                onChange={(e) => setBulkParticipants(e.target.value)}
+                placeholder="Player 1&#10;Player 2&#10;Player 3"
+                className="w-full h-24 border border-gray-300 rounded-md p-3 text-gray-800 text-sm"
+                disabled={isSubmitting}
+              />
+              <div className="flex justify-center mt-3">
+                <button
+                  onClick={processBulkParticipantNames}
+                  disabled={!bulkParticipants.trim() || isSubmitting}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next: Customize Participants
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          // Step 2: Customize avatars and colors for bulk participants
+          <div className="bg-yellow-50 rounded-lg p-4 mb-4">
+            <h4 className="font-medium text-yellow-800 mb-3">Customize Each Participant's Avatar and Color:</h4>
+            <div className="space-y-4 max-h-64 overflow-y-auto">
+              {participantsToAdd.map((participant) => (
+                <div key={participant.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-xl"
+                        style={{ backgroundColor: participant.color }}
+                      >
+                        {participant.avatar}
+                      </div>
+                      <span className="font-medium text-gray-800">{participant.name}</span>
+                    </div>
+                    <button
+                      onClick={() => removeParticipantFromList(participant.id)}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                      disabled={isSubmitting}
+                    >
+                      ✕ Remove
+                    </button>
+                  </div>
+                  
+                  {/* Avatar Selection */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Avatar:</label>
+                    <div className="flex flex-wrap gap-1">
+                      {availableAvatars.slice(0, 12).map((avatar) => (
+                        <button
+                          key={avatar}
+                          onClick={() => updateParticipantDetails(participant.id, 'avatar', avatar)}
+                          className={`w-8 h-8 rounded-full text-sm hover:scale-110 transition-transform ${
+                            participant.avatar === avatar 
+                              ? 'ring-2 ring-blue-500 bg-blue-100' 
+                              : 'hover:bg-gray-100'
+                          }`}
+                          disabled={isSubmitting}
+                        >
+                          {avatar}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Color Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Color:</label>
+                    <div className="flex flex-wrap gap-1">
+                      {availableColors.slice(0, 12).map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => updateParticipantDetails(participant.id, 'color', color)}
+                          className={`w-6 h-6 rounded-full hover:scale-110 transition-transform ${
+                            participant.color === color 
+                              ? 'ring-2 ring-gray-600' 
+                              : ''
+                          }`}
+                          style={{ backgroundColor: color }}
+                          title={color}
+                          disabled={isSubmitting}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex gap-2 mt-4 pt-4 border-t">
+              <button
+                onClick={confirmParticipants}
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md font-medium text-sm"
+                disabled={isSubmitting}
+              >
+                Add {participantsToAdd.length} Participants
+              </button>
+              <button
+                onClick={() => setParticipantsToAdd([])}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
+                disabled={isSubmitting}
+              >
+                ← Back to Names
+              </button>
+            </div>
           </div>
-          
-          {/* Participant Avatar */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1 text-gray-700">Avatar</label>
-            <select 
-              value={gameForm.participantAvatar}
-              onChange={(e) => handleInputChange('participantAvatar', e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2"
-              disabled={isSubmitting}
-            >
-              <option value="fox">🦊 Fox</option>
-              <option value="cat">🐱 Cat</option>
-              <option value="dog">🐶 Dog</option>
-              <option value="bear">🐻 Bear</option>
-              <option value="rabbit">🐰 Rabbit</option>
-              <option value="wolf">🐺 Wolf</option>
-              <option value="owl">🦉 Owl</option>
-              <option value="dragon">🐉 Dragon</option>
-            </select>
-          </div>
-          
-          {/* Participant Color */}
-          <div className="flex flex-col">
-            <label className="text-sm font-medium mb-1 text-gray-700">Color</label>
-            <input 
-              type="color" 
-              value={gameForm.participantColor}
-              onChange={(e) => handleInputChange('participantColor', e.target.value)}
-              className="h-10 w-full rounded-lg border border-gray-300"
-              disabled={isSubmitting}
-            />
-          </div>
-
-        </div>
-        
-        {/* Add Participant */}
-        <div className="flex justify-center mt-3">
-          <button 
-            onClick={addParticipant}
-            disabled={!gameForm.participantName.trim() || isSubmitting}
-            className="bg-blue-500 text-white px-4 py-2 rounded-full hover:scale-105 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-          >
-            ➕ Add Participant
-          </button>
-        </div>
+        )}
         
         {/* Show message when no participants */}
         {participants.length === 0 && (
@@ -344,7 +501,7 @@ const AdminDashboard = () => {
         
         {/* Participant List */}
         {participants.length > 0 && (
-          <div className="mt-4 max-h-32 overflow-y-auto">
+          <div className="mt-4 max-h-40 overflow-y-auto">
             <div className="text-sm font-medium text-gray-700 mb-2">Participants Added:</div>
             <ul className="space-y-2 text-sm text-gray-700">
               {participants.map(participant => (
@@ -357,7 +514,6 @@ const AdminDashboard = () => {
                       {getAvatarEmoji(participant.avatar)}
                     </div>
                     <span className="font-medium">{participant.name}</span>
-                    <span className="text-gray-500 capitalize">({participant.avatar})</span>
                   </div>
                   <button 
                     onClick={() => removeParticipant(participant.id)}

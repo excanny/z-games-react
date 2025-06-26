@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axiosClient from '../utils/axiosClient';  
 import { Link } from 'react-router-dom';
+import io from 'socket.io-client';
+import { useParams } from 'react-router-dom';
+
+const socket = io('http://localhost:5000');
 
 const Scoreboard = () => {
   const [gameData, setGameData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [longLoading, setLongLoading] = useState(false);
+
+  const { gameId } = useParams();
 
   const avatarEmojis = {
     'bear': '🐻',
@@ -43,9 +48,7 @@ const Scoreboard = () => {
         setError(null);
         setLongLoading(false);
 
-        const gameId = '68580170decad0972a2a7bae'; // <-- Replace with actual gameId, or pass via props / route param
-
-        const response = await axios.get(`http://localhost:5000/api/games/${gameId}/leaderboard`, {
+        const response = await axiosClient.get(`/games/${gameId}/leaderboard`, {
           timeout: 10000,
         });
 
@@ -59,12 +62,20 @@ const Scoreboard = () => {
           name: apiResponse.data.name,
           type: 'Game',
           round: 'Live',
+          lastGamesUpdateAt: new Date(apiResponse.data.lastGamesUpdateAt).toLocaleString('en-US', {
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true
+}),
           players: apiResponse.data.leaderboard.map(player => ({
             name: player.name,
             points: player.score,
             rank: player.rank,
             avatar: player.avatar,
-            color: getColorClass(player.color, player.rank),
+            color: getColorClass(player.color, player.rank)
           }))
         };
 
@@ -82,8 +93,21 @@ const Scoreboard = () => {
       if (loading) setLongLoading(true);
     }, 10000);
 
-    return () => clearTimeout(timer);
-  }, [retryCount]);
+    // ✅ Listen for real-time leaderboard updates
+    socket.on('leaderboardUpdated', (data) => {
+      console.log('Leaderboard updated for game:', data.gameId);
+      // Optional: Check if the update is for this gameId
+      if (data.gameId === gameId) {
+        fetchGameData();
+      }
+    });
+
+    // ✅ Cleanup listener on unmount
+    return () => {
+      clearTimeout(timer);
+      socket.off('leaderboardUpdated');
+    };
+  }, [gameId]);
 
   const getRankDisplay = (rank) => {
     switch (rank) {
@@ -125,14 +149,15 @@ const Scoreboard = () => {
     );
   }
 
-  const { name, type, round, players } = gameData;
+  const { name, type, round, players, lastGamesUpdateAt } = gameData;
+
+  console.log('Game data:', gameData);
   const highestScore = Math.max(...players.map(p => p.points));
 
   return (
     <div className="min-h-screen py-8 px-4">
       <div className="max-w-4xl mx-auto">
-
-      <div className="flex justify-center items-center gap-4 mb-6">
+        <div className="flex justify-center items-center gap-4 mb-6">
           <div className="text-4xl text-blue-600 font-extrabold">
             <span>Z</span>
             <span className="text-blue-600">-GAMES</span>
@@ -140,9 +165,6 @@ const Scoreboard = () => {
           <div className="text-xl font-semibold text-gray-700">Scoreboard</div>
         </div>
 
-
-
-        {/* Header */}
         <div className="text-center mb-4">
           <h1 className="text-3xl font-bold mb-1">{name}</h1>
           <div className="text-sm">
@@ -150,7 +172,6 @@ const Scoreboard = () => {
           </div>
         </div>
 
-        {/* Scoreboard */}
         <div className="bg-white rounded-3xl shadow-soft border overflow-hidden">
           <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-8 py-6">
             <h2 className="text-2xl font-bold text-white text-center">Live Rankings</h2>
@@ -197,12 +218,11 @@ const Scoreboard = () => {
           <div className="bg-slate-50 px-8 py-6 border-t">
             <div className="flex justify-between items-center text-sm text-slate-600">
               <span>Live {type}</span>
-              <span>Last updated: Just now</span>
+              <span>Last updated: {lastGamesUpdateAt}</span>
             </div>
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
           <div className="bg-white rounded-xl p-6 shadow-soft text-center">
             <div className="text-3xl font-bold text-blue-600 mb-2">{players.length}</div>

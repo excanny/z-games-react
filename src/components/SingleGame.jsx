@@ -1,10 +1,12 @@
 // src/pages/SingleGame.jsx
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import axios from "axios";
+import { useParams, useNavigate } from 'react-router-dom';
+import axiosClient from '../utils/axiosClient'; 
+import { ToastContainer, toast } from 'react-toastify';
 
 const SingleGame = () => {
   const { gameId } = useParams();
+  const navigate = useNavigate();
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [longestStreak, setLongestStreak] = useState(null);
   const [currentGame, setCurrentGame] = useState({
@@ -13,18 +15,49 @@ const SingleGame = () => {
     icon: '🎮'
   });
   const [loading, setLoading] = useState(true);
-  const [showUpdateScore, setShowUpdateScore] = useState(false);
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
-  const [newScore, setNewScore] = useState('');
+  const [longLoading, setLongLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [showControls, setShowControls] = useState(false);
+  
+  // Bulk operations state
+  const [showBulkAdd, setShowBulkAdd] = useState(false);
+  const [showBulkRemove, setShowBulkRemove] = useState(false);
+  const [bulkPlayers, setBulkPlayers] = useState('');
+  const [selectedPlayersForRemoval, setSelectedPlayersForRemoval] = useState([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [playersToAdd, setPlayersToAdd] = useState([]);
+
+  // Available avatars and colors
+  const availableAvatars = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦄'];
+  const availableColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43', '#10AC84', '#EE5A24', '#0984E3', '#A29BFE', '#FD79A8', '#E17055', '#81ECEC', '#74B9FF', '#A29BFE', '#FD79A8'];
+
+
+   const addedPlayers = () => toast(`Successfully added players!`);
+   const removedPlayers = () => toast('Player(s) removed successfully!');
+   const scoreUpdated = () => toast('Score updated successfully!');
+   const gameDeactivated = () => toast('Game deactivated successfully!');
+  
+
+  // Helper function to check if game has meaningful progress
+  const hasGameProgress = () => {
+    const maxScore = leaderboardData.length > 0 ? Math.max(...leaderboardData.map(p => p.score)) : 0;
+    const hasStreaks = leaderboardData.some(p => p.streak > 0);
+    return maxScore > 0 || hasStreaks;
+  };
+
+  // Helper function to check if streaks should be shown
+  const shouldShowStreaks = () => {
+    return longestStreak && longestStreak.longestStreak > 0 && hasGameProgress();
+  };
 
   const getGameDetails = async (gameId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/games/${gameId}`);
+      const response = await axiosClient.get(`/games/${gameId}`);
       console.log('Game details:', response.data.data);
       setCurrentGame(response.data.data);
     } catch (err) {
       console.error('Error fetching game details:', err);
+      setError(err.message);
       // Fallback game data
       setCurrentGame({
         name: `Game ${gameId}`,
@@ -34,21 +67,31 @@ const SingleGame = () => {
     }
   };
 
-  const getLeaderboardData = async (gameId) => {
+  const getLeaderboardData = async (gameId, shouldSetLoading = true) => {
     try {
-      setLoading(true);
-      const response = await axios.get(`http://localhost:5000/api/games/${gameId}/leaderboard`);
+      if (shouldSetLoading) {
+        setLoading(true);
+      }
+      setError(null);
+      setLongLoading(false);
+      
+      const response = await axiosClient.get(`/games/${gameId}/leaderboard`, {
+        timeout: 10000,
+      });
       setLeaderboardData(response.data.data.leaderboard);
       setLongestStreak(response.data.data.longestStreak);
     } catch (err) {
       console.error('Error fetching leaderboard:', err);
+      setError(err.message);
       // Set fallback data for development
       setLeaderboardData([
         { name: 'Alice', score: 600, streak: 5, rank: 1 },
         { name: 'Bob', score: 100, streak: 0, rank: 2 }
       ]);
     } finally {
-      setLoading(false);
+      if (shouldSetLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -62,16 +105,13 @@ const SingleGame = () => {
       return;
     }
 
-    setSelectedPlayer(player);
-    setNewScore(scoreValue);
     submitScoreUpdate(player, scoreValue);
     scoreInput.value = ''; // Clear the input
   };
 
   const submitScoreUpdate = async (player, score) => {
-    debugger
     try {
-      const response = await axios.patch(`http://localhost:5000/api/games/${gameId}/participants/score`, {
+      const response = await axiosClient.patch(`/games/${gameId}/participants/score`, {
         name: player.name,
         scoreDelta: parseInt(score)
       }, {
@@ -81,10 +121,9 @@ const SingleGame = () => {
       });
       
       if (response.data.status === 'success') {
-        await getLeaderboardData(gameId);
-        setShowUpdateScore(false);
-        setSelectedPlayer(null);
-        setNewScore('');
+        scoreUpdated();
+        // Don't show loading spinner for score updates
+        await getLeaderboardData(gameId, false);
       }
     } catch (err) {
       console.error('Error updating score:', err);
@@ -92,20 +131,163 @@ const SingleGame = () => {
     }
   };
 
+  // Process bulk player names input
+  const processBulkPlayerNames = () => {
+    if (!bulkPlayers.trim()) {
+      alert('Please enter player names'); 
+      return;
+    }
+
+    const playerNames = bulkPlayers.split('\n').filter(name => name.trim());
+    const newPlayersToAdd = playerNames.map((name, index) => ({
+      id: Date.now() + index,
+      name: name.trim(),
+      avatar: availableAvatars[index % availableAvatars.length], // Cycle through avatars
+      color: availableColors[index % availableColors.length] // Cycle through colors
+    }));
+
+    setPlayersToAdd(newPlayersToAdd);
+    setBulkPlayers('');
+  };
+
+  // Update individual player details
+  const updatePlayerDetails = (playerId, field, value) => {
+    setPlayersToAdd(prev => 
+      prev.map(player => 
+        player.id === playerId ? { ...player, [field]: value } : player
+      )
+    );
+  };
+
+  // Remove player from the list
+  const removePlayerFromList = (playerId) => {
+    setPlayersToAdd(prev => prev.filter(player => player.id !== playerId));
+  };
+
+  // Bulk add players
+  const handleBulkAddPlayers = async () => {
+    if (playersToAdd.length === 0) {
+      alert('No players to add');
+      return;
+    }
+
+    const playersData = playersToAdd.map(player => ({
+      name: player.name,
+      avatar: player.avatar,
+      color: player.color
+    }));
+
+    try {
+      const response = await axiosClient.post(`/games/${gameId}/players/bulk`, {
+        action: "add",
+        players: playersData
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.data.status === 'success') {
+        await getLeaderboardData(gameId, false);
+        setPlayersToAdd([]);
+        setShowBulkAdd(false);
+        //alert(`Successfully added ${playersData.length} players!`);
+        addedPlayers();
+      }
+    } catch (err) {
+      console.error('Error adding players:', err);
+      alert('Failed to add players. Please try again.');
+    }
+  };
+
+  // Bulk remove players
+  const handleBulkRemovePlayers = async () => {
+    if (selectedPlayersForRemoval.length === 0) {
+      alert('Please select players to remove');
+      return;
+    }
+
+    const playersToRemove = selectedPlayersForRemoval.map(playerName => {
+      const player = leaderboardData.find(p => p.name === playerName);
+      return {
+        name: playerName,
+        avatar: player?.avatar || "default",
+        color: player?.color || "#000000"
+      };
+    });
+
+    try {
+      const response = await axiosClient.post(`/games/${gameId}/players/bulk`, {
+        action: "remove",
+        players: playersToRemove
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.data.status === 'success') {
+        await getLeaderboardData(gameId, false);
+        setSelectedPlayersForRemoval([]);
+        setShowBulkRemove(false);
+        alert(`Successfully removed ${playersToRemove.length} players!`);
+      }
+    } catch (err) {
+      console.error('Error removing players:', err);
+      alert('Failed to remove players. Please try again.');
+    }
+  };
+
+  // Delete/deactivate game
+  const handleDeactivateGame = async () => {
+    try {
+      const response = await axiosClient.put(`/games/${gameId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.data.status === 'success') {
+        //alert('Game has been deactivated successfully!');
+        gameDeactivated();
+        navigate('/admin-dashboard'); 
+      }
+    } catch (err) {
+      console.error('Error deleting game:', err);
+      alert('Failed to delete game. Please try again.');
+    }
+  };
+
   const toggleControls = () => {
     setShowControls(!showControls);
   };
 
+  const togglePlayerSelection = (playerName) => {
+    setSelectedPlayersForRemoval(prev => 
+      prev.includes(playerName) 
+        ? prev.filter(name => name !== playerName)
+        : [...prev, playerName]
+    );
+  };
+
   const getRankIcon = (rank) => {
+    if (!hasGameProgress()) {
+      return '•'; 
+    }
+    
     switch (rank) {
       case 1: return '🥇';
-      case 2: return '🥈';
+      case 2: return '🥈';  
       case 3: return '🥉';
       default: return `#${rank}`;
     }
   };
 
   const getRankClass = (rank) => {
+    if (!hasGameProgress()) {
+      return 'bg-gray-50 border border-gray-200'; // Neutral styling when no progress
+    }
+    
     switch (rank) {
       case 1: return 'bg-yellow-100 border-2 border-yellow-400';
       case 2: return 'bg-gray-100 border-2 border-gray-400';
@@ -114,20 +296,67 @@ const SingleGame = () => {
     }
   };
 
-  // Fetch leaderboard data when selected game changes
+  // Fetch leaderboard data when component mounts or gameId changes
   useEffect(() => {
     const initializeData = async () => {
-      await getLeaderboardData(gameId);
-      await getGameDetails(gameId);
+      setLoading(true);
+      setError(null);
+      setLongLoading(false);
+      
+      try {
+        await Promise.all([
+          getLeaderboardData(gameId, false),
+          getGameDetails(gameId)
+        ]);
+      } catch (err) {
+        console.error('Error initializing data:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     
     initializeData();
-  }, [gameId]);
+
+    // Set up timer for long loading indicator
+    const timer = setTimeout(() => {
+      setLongLoading(true);
+    }, 10000);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [gameId]); // Only depend on gameId, not loading
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-b from-blue-500 to-blue-700 min-h-screen text-white flex items-center justify-center">
-        <div className="text-2xl">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center text-center">
+        <div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Loading game data...</p>
+          {longLoading && (
+            <p className="text-red-500 mt-2">This is taking longer than expected. Please check your connection.</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-center">
+        <div>
+          <div className="text-6xl mb-4">❌</div>
+          <h2 className="text-2xl font-bold mb-2">Error loading game</h2>
+          <p className="mb-4">{error}</p>
+          <div className="mt-4">
+            <button 
+              onClick={() => navigate('/')}
+              className="text-blue-600 hover:underline"
+            >
+              ⬅️ Back to Home
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -171,8 +400,8 @@ const SingleGame = () => {
 
         {/* Participants with Score Update and Streak King Highlight */}
         <div className="bg-white text-gray-800 rounded-xl p-6 shadow mb-8">
-          {/* Hottest Streak Champion */}
-          {longestStreak && (
+          {/* Hottest Streak Champion - Only show if there are meaningful streaks */}
+          {shouldShowStreaks() && (
             <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-2xl p-6 shadow-xl mb-8 border-l-4 border-yellow-400">
               <div className="flex items-center gap-4">
                 <div className="text-4xl">🔥</div>
@@ -186,55 +415,80 @@ const SingleGame = () => {
             </div>
           )}
 
-          <h2 className="text-xl font-semibold mb-4">Overall Rankings</h2>
+          <h2 className="text-xl font-semibold mb-4">
+            {hasGameProgress() ? 'Overall Rankings' : 'Players'}
+          </h2>
+
           <ul className="space-y-4">
-            {leaderboardData.map((player, index) => (
-              <li key={player.name} className={`p-4 rounded-lg ${getRankClass(player.rank || index + 1)}`}>
-                <div className="flex justify-between items-center mb-2">
-              
-        
-                  <div className="flex items-center gap-3 font-medium">
-                    <span className="bg-gray-300 text-gray-800 text-xs font-bold px-2 py-0.5 rounded-full">
-                      {getRankIcon(player.rank || index + 1)} {player.rank || index + 1}
-                      {player.rank === 1 ? 'st' : player.rank === 2 ? 'nd' : player.rank === 3 ? 'rd' : 'th'}
-                    </span>
-                    <span className="flex items-center gap-2">
-                      {player.name} 
-                      {player.name.startsWith('A') ? '👩' : '🧑'}
-                      {player.rank === 1 && (
-                        <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white px-3 py-1 rounded-full shadow-lg font-extrabold text-sm animate-pulse">
-                          <span className="text-2xl drop-shadow-lg leading-none" style={{filter: 'brightness(1.5) contrast(1.2)', lineHeight: '1'}}>👑</span> 
-                          <span className="leading-none">STREAK KING</span>
+            {(() => {
+              // Fixed streak king logic
+              const streakKingName = longestStreak && longestStreak.longestStreak > 0 && hasGameProgress() 
+                ? longestStreak.playerName 
+                : null;
+
+              return leaderboardData.map((player, index) => {
+                const isStreakKing = player.name === streakKingName;
+
+                return (
+                  <li key={player.name} className={`p-4 rounded-lg ${getRankClass(player.rank || index + 1)}`}>
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-3 font-medium">
+                        {showBulkRemove && (
+                          <input
+                            type="checkbox"
+                            checked={selectedPlayersForRemoval.includes(player.name)}
+                            onChange={() => togglePlayerSelection(player.name)}
+                            className="w-4 h-4"
+                          />
+                        )}
+                        {hasGameProgress() && (
+                          <span className="bg-gray-300 text-gray-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                            {getRankIcon(player.rank || index + 1)} {player.rank || index + 1}
+                            {player.rank === 1 ? 'st' : player.rank === 2 ? 'nd' : player.rank === 3 ? 'rd' : 'th'}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-2">
+                          {player.name} 
+                          {player.name.startsWith('A') ? '👩' : '🧑'}
+                          {isStreakKing && (
+                            <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white px-3 py-1 rounded-full shadow-lg font-extrabold text-sm animate-pulse">
+                              <span className="text-2xl drop-shadow-lg leading-none" style={{ filter: 'brightness(1.5) contrast(1.2)', lineHeight: '1' }}>👑</span> 
+                              <span className="leading-none">STREAK KING</span>
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                    {player.streak > 0 && (
-                      <span className="text-xs bg-yellow-300 text-yellow-900 px-2 py-0.5 rounded-md">
-                        Streak: {player.streak} Wins 🔥
+                        {player.streak > 0 && hasGameProgress() && (
+                          <span className="text-xs bg-yellow-300 text-yellow-900 px-2 py-0.5 rounded-md">
+                            Streak: {player.streak} Wins 🔥
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm bg-yellow-200 text-yellow-900 font-semibold px-3 py-1 rounded-full shadow-sm">
+                        Score: {player.score}
                       </span>
+                    </div>
+                    {!showBulkRemove && (
+                      <form className="flex gap-2 items-center" onSubmit={(e) => handleUpdateScore(player, e)}>
+                        <input 
+                          type="number" 
+                          className="w-32 border border-gray-300 rounded-md p-2" 
+                          placeholder="Score" 
+                          required
+                        />
+                        <button 
+                          type="submit" 
+                          className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-md hover:bg-blue-700"
+                        >
+                          Update
+                        </button>
+                      </form>
                     )}
-                  </div>
-                  <span className="text-sm bg-yellow-200 text-yellow-900 font-semibold px-3 py-1 rounded-full shadow-sm">
-                    Score: {player.score}
-                  </span>
-                </div>
-                <form className="flex gap-2 items-center" onSubmit={(e) => handleUpdateScore(player, e)}>
-                  <input 
-                    type="number" 
-                    className="w-32 border border-gray-300 rounded-md p-2" 
-                    placeholder="Score" 
-                    required
-                  />
-                  <button 
-                    type="submit" 
-                    className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-md hover:bg-blue-700"
-                  >
-                    Update
-                  </button>
-                </form>
-              </li>
-            ))}
+                  </li>
+                );
+              });
+            })()}
           </ul>
+
         </div>
 
         {/* Toggle Controls */}
@@ -246,26 +500,220 @@ const SingleGame = () => {
             ⚙️ More Options
           </button>
           {showControls && (
-            <div className="mt-4">
-              <div className="flex gap-4">
-                <button className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-2 rounded-xl shadow">
-                  ➕ Add New Player
+            <div className="mt-4 space-y-4">
+              <div className="flex flex-wrap gap-4">
+                <button 
+                  onClick={() => setShowBulkAdd(true)}
+                  className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-2 rounded-xl shadow"
+                >
+                  ➕ Add Player(s)
                 </button>
-                <button className="bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2 rounded-xl shadow">
-                  🗑️ Delete Game
+                <button 
+                  onClick={() => setShowBulkRemove(!showBulkRemove)}
+                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-xl shadow"
+                >
+                  ➖ Remove Players
+                </button>
+                <button 
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2 rounded-xl shadow"
+                >
+                  🗑️ Deactivate Game
                 </button>
               </div>
+
+              {/* Bulk Remove Actions */}
+              {showBulkRemove && (
+                <div className="bg-orange-100 p-4 rounded-lg">
+                  <p className="text-gray-800 mb-3">Select players to remove from the game:</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleBulkRemovePlayers}
+                      disabled={selectedPlayersForRemoval.length === 0}
+                      className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-md"
+                    >
+                      Remove Selected ({selectedPlayersForRemoval.length})
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowBulkRemove(false);
+                        setSelectedPlayersForRemoval([]);
+                      }}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
+        {/* Bulk Add Players Modal */}
+        {showBulkAdd && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+            <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Add Player(s)</h3>
+              
+              {playersToAdd.length === 0 ? (
+                // Step 1: Enter player names
+                <div>
+                  <p className="text-sm text-gray-600 mb-3">Enter player names, one per line:</p>
+                  <textarea
+                    value={bulkPlayers}
+                    onChange={(e) => setBulkPlayers(e.target.value)}
+                    placeholder="Player 1&#10;Player 2&#10;Player 3"
+                    className="w-full h-32 border border-gray-300 rounded-md p-3 text-gray-800"
+                  />
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={processBulkPlayerNames}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md"
+                    >
+                      Next: Customize Player(s)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowBulkAdd(false);
+                        setBulkPlayers('');
+                        setPlayersToAdd([]);
+                      }}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // Step 2: Customize avatars and colors
+                <div>
+                  <p className="text-sm text-gray-600 mb-4">Customize each player's avatar and color:</p>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {playersToAdd.map((player) => (
+                      <div key={player.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-12 h-12 rounded-full flex items-center justify-center text-2xl"
+                              style={{ backgroundColor: player.color }}
+                            >
+                              {player.avatar}
+                            </div>
+                            <span className="font-medium text-gray-800">{player.name}</span>
+                          </div>
+                          <button
+                            onClick={() => removePlayerFromList(player.id)}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                          >
+                            ✕ Remove
+                          </button>
+                        </div>
+                        
+                        {/* Avatar Selection */}
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Avatar:</label>
+                          <div className="flex flex-wrap gap-2">
+                            {availableAvatars.map((avatar) => (
+                              <button
+                                key={avatar}
+                                onClick={() => updatePlayerDetails(player.id, 'avatar', avatar)}
+                                className={`w-10 h-10 rounded-full text-xl hover:scale-110 transition-transform ${
+                                  player.avatar === avatar 
+                                    ? 'ring-2 ring-blue-500 bg-blue-100' 
+                                    : 'hover:bg-gray-100'
+                                }`}
+                              >
+                                {avatar}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {/* Color Selection */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Color:</label>
+                          <div className="flex flex-wrap gap-2">
+                            {availableColors.map((color) => (
+                              <button
+                                key={color}
+                                onClick={() => updatePlayerDetails(player.id, 'color', color)}
+                                className={`w-8 h-8 rounded-full hover:scale-110 transition-transform ${
+                                  player.color === color 
+                                    ? 'ring-2 ring-gray-600' 
+                                    : ''
+                                }`}
+                                style={{ backgroundColor: color }}
+                                title={color}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="flex gap-2 mt-6 pt-4 border-t">
+                    <button
+                      onClick={handleBulkAddPlayers}
+                      className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-md font-medium"
+                    >
+                      Add {playersToAdd.length} Players
+                    </button>
+                    <button
+                      onClick={() => setPlayersToAdd([])}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md"
+                    >
+                      ← Back to Names
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowBulkAdd(false);
+                        setBulkPlayers('');
+                        setPlayersToAdd([]);
+                      }}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Delete Game Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">⚠️ Deactivate Game</h3>
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to deactivate this game? This action will deactivate the game and cannot be undone.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDeactivateGame}
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md"
+                >
+                  Yes, Deactivate Game
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <footer className="mt-6 text-center text-sm text-white">
           <p>&copy; 2025 Z Games. All rights reserved.</p>
         </footer>
+        <ToastContainer />
       </div>
-
-      
     </div>
   );
 };

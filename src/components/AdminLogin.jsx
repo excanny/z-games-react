@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../axios"; // Adjust the import path as necessary
+import api from "../utils/axiosClient"; 
 
 const AdminLogin = () => {
     const navigate = useNavigate();
@@ -21,7 +21,7 @@ const AdminLogin = () => {
         console.log("Form data being sent:", formData); // Debug log
 
         try {
-            const response = await api.post("/api/auth/login", formData);
+            const response = await api.post("/auth/login", formData);
             console.log("Login successful:", response.data);
 
             // Example: Save token or redirect
@@ -181,7 +181,7 @@ const AdminLogin = () => {
 
             <footer className="footer mt-6 text-center text-sm text-blue-400">
                     <p>&copy; 2025 Z Games. . All rights reserved.</p>
-                    </footer>
+            </footer>
             
             <style jsx>{`
                 @keyframes shimmer {
