@@ -1,8 +1,9 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",  // ✅ Base URL for all API calls
-  timeout: 10000,                         // ✅ Optional: timeout after 10 seconds
+  //baseURL: "http://localhost:5000/api",  // ✅ Base URL for all API calls
+  baseURL: "https://z-games.onrender.com/api",  // ✅ Base URL for all API calls
+  //timeout: 10000,                         // ✅ Optional: timeout after 10 seconds
   headers: {
     "Content-Type": "application/json",
   },
