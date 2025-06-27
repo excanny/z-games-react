@@ -88,29 +88,31 @@ const Home = () => {
     // Main home page
     return (
         <>
-            <div className="min-h-screen w-full bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 flex flex-col items-center justify-center px-4 py-8">
-                <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden flex">
-                    {/* Left Image Section */}
-                    <div className="flex-1 bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center p-8 relative">
+            <div className="min-h-screen w-full bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 flex flex-col items-center justify-center px-2 sm:px-4 py-4 sm:py-8">
+                <div className="w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl bg-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
+                    {/* Logo Section - Top on mobile, Left on desktop */}
+                    <div className="w-full md:flex-1 bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center p-4 sm:p-6 md:p-8 relative min-h-[200px] sm:min-h-[250px] md:min-h-auto">
                         <img
                             src={ZGamesLogo}
                             alt="Z Games Logo"
-                            className="max-w-full max-h-full object-contain"
+                            className="max-w-full max-h-full object-contain w-auto h-auto"
                         />
-                        <div className="absolute bottom-0 left-0 w-16 h-16 bg-blue-900 rotate-45 translate-x-1/2 translate-y-1/2" />
+                        {/* Decorative element - hidden on small screens */}
+                        <div className="hidden md:block absolute bottom-0 left-0 w-12 lg:w-16 h-12 lg:h-16 bg-blue-900 rotate-45 translate-x-1/2 translate-y-1/2" />
                     </div>
     
-                    {/* Right Content Section */}
-                    <div className="flex-1 bg-slate-50 relative p-10 flex flex-col justify-center">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-800 rounded-bl-full" />
+                    {/* Content Section - Bottom on mobile, Right on desktop */}
+                    <div className="w-full md:flex-1 bg-slate-50 relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col justify-center">
+                        {/* Decorative element - adjusted for mobile */}
+                        <div className="absolute top-0 right-0 w-16 sm:w-20 md:w-24 h-16 sm:h-20 md:h-24 bg-blue-800 rounded-bl-full" />
     
-                        <p className="text-slate-500 text-sm mb-3">Blak Comms.</p>
+                        <p className="text-slate-500 text-xs sm:text-sm mb-2 sm:mb-3">Blak Comms.</p>
     
-                        <h1 className="text-4xl font-extrabold text-slate-800 leading-tight mb-2">
+                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-800 leading-tight mb-2">
                             Welcome to <span className="text-blue-800">Z-Games</span>
                         </h1>
     
-                        <p className="text-lg italic text-slate-600 mb-6">
+                        <p className="text-base sm:text-lg italic text-slate-600 mb-4 sm:mb-6">
                             Your ultimate destination for in-door party games!
                         </p>
     
@@ -121,12 +123,12 @@ const Home = () => {
                             >
                                 Enter Game Code:
                             </label>
-                            <div className="flex">
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
                                 <input
                                     type="text"
                                     id="gameCode"
                                     placeholder="ENTER GAME CODE"
-                                    className={`flex-1 px-4 py-3 border rounded-l-md text-center text-base tracking-wider uppercase focus:outline-none focus:ring-2 transition-all ${
+                                    className={`w-full sm:flex-1 px-3 sm:px-4 py-2 sm:py-3 border sm:rounded-l-md rounded-md sm:rounded-r-none text-center text-sm sm:text-base tracking-wider uppercase focus:outline-none transition-all ${
                                         errorMessage 
                                             ? 'border-red-300 focus:ring-red-300' 
                                             : 'border-slate-300 focus:ring-blue-300'
@@ -138,7 +140,7 @@ const Home = () => {
                                     autoComplete="off"
                                 />
                                 <button 
-                                    className={`px-6 py-3 text-white text-sm font-bold uppercase rounded-r-md transition-all ${
+                                    className={`w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 text-white text-sm font-bold uppercase rounded-md sm:rounded-l-none sm:rounded-r-md transition-all ${
                                         isLoading || !gameCode.trim()
                                             ? 'bg-gray-400 cursor-not-allowed'
                                             : 'bg-gradient-to-br from-blue-700 to-blue-500 hover:shadow-md hover:-translate-y-0.5'
@@ -152,23 +154,23 @@ const Home = () => {
                         </div>
     
                         {errorMessage && (
-                            <div className="mb-1 p-1 bg-red-100 border border-red-300 rounded-md">
+                            <div className="mb-1 p-2 sm:p-3 bg-red-100 border border-red-300 rounded-md">
                                 <p className="text-red-700 text-sm">{errorMessage}</p>
                             </div>
                         )}
     
                         <div className="mt-3">
-                            <div className="bg-slate-800 text-white text-sm rounded-md px-5 py-2 shadow flex items-center justify-center">
+                            <div className="bg-slate-800 text-white text-xs sm:text-sm rounded-md px-3 sm:px-5 py-2 shadow flex items-center justify-center text-center">
                                 <span className="font-normal">Need a game code? Contact the games master!</span>
                             </div>
                         </div>
                     </div>
                 </div>
     
-                {/* Footer INSIDE blue background */}
-                <footer className="footer mt-6 text-center text-sm text-blue-200">
+                {/* Footer */}
+                <footer className="footer mt-4 sm:mt-6 text-center text-xs sm:text-sm text-blue-200 px-4">
                     <p>&copy; 2025 Z Games. All rights reserved.</p>
-                    <p>
+                    <p className="mt-1">
                         <a href="/admin-login" className="underline hover:text-white transition-colors duration-200">
                             Admin Login
                         </a>
