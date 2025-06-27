@@ -32,11 +32,11 @@ const SingleGame = () => {
   const availableColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43', '#10AC84', '#EE5A24', '#0984E3', '#A29BFE', '#FD79A8', '#E17055', '#81ECEC', '#74B9FF', '#A29BFE', '#FD79A8'];
 
 
-   const addedPlayers = () => toast(`Successfully added players!`);
-   const removedPlayers = () => toast('Player(s) removed successfully!');
-   const scoreUpdated = () => toast('Score updated successfully!');
-   const gameDeactivated = () => toast('Game deactivated successfully!');
-  
+   const addedPlayersNotification = () => toast(`Successfully added players!`);
+   const removedPlayersNotification = () => toast('Player(s) removed successfully!');
+   const scoreUpdatedNotification = () => toast('Score updated successfully!');
+   const gameDeactivatedNotification = () => toast('Game deactivated successfully!');
+  const enterPlayerNamesNotification = () => toast('Please enter player name(s)');
 
   // Helper function to check if game has meaningful progress
   const hasGameProgress = () => {
@@ -121,7 +121,7 @@ const SingleGame = () => {
       });
       
       if (response.data.status === 'success') {
-        scoreUpdated();
+        scoreUpdatedNotification();
         // Don't show loading spinner for score updates
         await getLeaderboardData(gameId, false);
       }
@@ -134,7 +134,8 @@ const SingleGame = () => {
   // Process bulk player names input
   const processBulkPlayerNames = () => {
     if (!bulkPlayers.trim()) {
-      alert('Please enter player names'); 
+      //alert('Please enter player names'); 
+      enterPlayerNamesNotification();
       return;
     }
 
@@ -191,8 +192,8 @@ const SingleGame = () => {
         await getLeaderboardData(gameId, false);
         setPlayersToAdd([]);
         setShowBulkAdd(false);
-        //alert(`Successfully added ${playersData.length} players!`);
-        addedPlayers();
+  
+        addedPlayersNotification();
       }
     } catch (err) {
       console.error('Error adding players:', err);
@@ -230,7 +231,8 @@ const SingleGame = () => {
         await getLeaderboardData(gameId, false);
         setSelectedPlayersForRemoval([]);
         setShowBulkRemove(false);
-        alert(`Successfully removed ${playersToRemove.length} players!`);
+        //alert(`Successfully removed ${playersToRemove.length} players!`);
+        removedPlayersNotification();
       }
     } catch (err) {
       console.error('Error removing players:', err);
@@ -249,7 +251,7 @@ const SingleGame = () => {
 
       if (response.data.status === 'success') {
         //alert('Game has been deactivated successfully!');
-        gameDeactivated();
+        gameDeactivatedNotification();
         navigate('/admin-dashboard'); 
       }
     } catch (err) {
@@ -279,7 +281,7 @@ const SingleGame = () => {
       case 1: return '🥇';
       case 2: return '🥈';  
       case 3: return '🥉';
-      default: return `#${rank}`;
+      default: return ``;
     }
   };
 
@@ -362,196 +364,196 @@ const SingleGame = () => {
   }
 
   return (
-    <div className="bg-gradient-to-b from-blue-500 to-blue-700 min-h-screen text-white">
-      <div className="max-w-5xl mx-auto p-6">
-        {/* Header */}
-        <div className="bg-blue-600 rounded-2xl p-6 shadow-xl mb-8 text-white">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+    <div className="bg-gradient-to-b from-blue-500 to-blue-700 min-h-screen text-white px-4 sm:px-6">
+  <div className="max-w-5xl mx-auto py-6">
+    {/* Header */}
+    <div className="bg-blue-600 rounded-2xl p-6 shadow-xl mb-8 text-white">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+            {currentGame.icon} <span>{currentGame.name}</span>
+          </h1>
+          <p className="mt-2 text-sm text-blue-100">
+            Game Code:  
+            <span className="inline-block bg-blue-800 text-yellow-300 font-mono px-3 py-1 rounded-md shadow-sm ml-2">
+              {currentGame.gameCode}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
+        <div className="bg-blue-500 rounded-xl p-6 shadow text-center">
+          <div className="text-3xl font-bold">{leaderboardData.length}</div>
+          <div className="text-sm text-blue-100">Participants</div>
+        </div>
+        <div className="bg-blue-500 rounded-xl p-6 shadow text-center">
+          <div className="text-3xl font-bold">
+            {leaderboardData.length > 0 ? Math.max(...leaderboardData.map(p => p.score)) : 0}
+          </div>
+          <div className="text-sm text-blue-100">Highest Score</div>
+        </div>
+        <div className="bg-blue-500 rounded-xl p-6 shadow text-center">
+          <div className="text-3xl font-bold">{leaderboardData.length}</div>
+          <div className="text-sm text-blue-100">Active Players</div>
+        </div>
+      </div>
+    </div>
+
+    {/* Participants */}
+    <div className="bg-white text-gray-800 rounded-xl p-6 shadow mb-8">
+      {shouldShowStreaks() && (
+        <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-2xl p-6 shadow-xl mb-8 border-l-4 border-yellow-400">
+          <div className="flex items-center gap-4">
+            <div className="text-4xl">🔥</div>
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-                {currentGame.icon} <span>{currentGame.name}</span>
-              </h1>
-              <p className="mt-2 text-sm text-blue-100">
-                Game Code:  
-                <span className="inline-block bg-blue-800 text-yellow-300 font-mono px-3 py-1 rounded-md shadow-sm ml-2">
-                  {currentGame.gameCode}
-                </span>
+              <h2 className="text-2xl font-extrabold tracking-tight mb-1 text-yellow-300">Hottest Streak Champion</h2>
+              <p className="text-lg font-medium text-gray-200">
+                {longestStreak.playerName} is on fire with a {longestStreak.longestStreak} win streak!
               </p>
             </div>
           </div>
-          {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-            <div className="bg-blue-500 rounded-xl p-6 shadow text-center">
-              <div className="text-3xl font-bold">{leaderboardData.length}</div>
-              <div className="text-sm text-blue-100">Participants</div>
-            </div>
-            <div className="bg-blue-500 rounded-xl p-6 shadow text-center">
-              <div className="text-3xl font-bold">
-                {leaderboardData.length > 0 ? Math.max(...leaderboardData.map(p => p.score)) : 0}
-              </div>
-              <div className="text-sm text-blue-100">Highest Score</div>
-            </div>
-            <div className="bg-blue-500 rounded-xl p-6 shadow text-center">
-              <div className="text-3xl font-bold">{leaderboardData.length}</div>
-              <div className="text-sm text-blue-100">Active Players</div>
-            </div>
-          </div>
         </div>
+      )}
 
-        {/* Participants with Score Update and Streak King Highlight */}
-        <div className="bg-white text-gray-800 rounded-xl p-6 shadow mb-8">
-          {/* Hottest Streak Champion - Only show if there are meaningful streaks */}
-          {shouldShowStreaks() && (
-            <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-2xl p-6 shadow-xl mb-8 border-l-4 border-yellow-400">
-              <div className="flex items-center gap-4">
-                <div className="text-4xl">🔥</div>
-                <div>
-                  <h2 className="text-2xl font-extrabold tracking-tight mb-1 text-yellow-300">Hottest Streak Champion</h2>
-                  <p className="text-lg font-medium text-gray-200">
-                    {longestStreak.playerName} is on fire with a {longestStreak.longestStreak} win streak!
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+      <h2 className="text-lg sm:text-xl font-semibold mb-4">
+        {hasGameProgress() ? 'Overall Rankings' : 'Players'}
+      </h2>
 
-          <h2 className="text-xl font-semibold mb-4">
-            {hasGameProgress() ? 'Overall Rankings' : 'Players'}
-          </h2>
+      <ul className="space-y-4">
+        {(() => {
+          const streakKingName = longestStreak && longestStreak.longestStreak > 0 && hasGameProgress()
+            ? longestStreak.playerName
+            : null;
 
-          <ul className="space-y-4">
-            {(() => {
-              // Fixed streak king logic
-              const streakKingName = longestStreak && longestStreak.longestStreak > 0 && hasGameProgress() 
-                ? longestStreak.playerName 
-                : null;
+          return leaderboardData.map((player, index) => {
+            const isStreakKing = player.name === streakKingName;
 
-              return leaderboardData.map((player, index) => {
-                const isStreakKing = player.name === streakKingName;
-
-                return (
-                  <li key={player.name} className={`p-4 rounded-lg ${getRankClass(player.rank || index + 1)}`}>
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center gap-3 font-medium">
-                        {showBulkRemove && (
-                          <input
-                            type="checkbox"
-                            checked={selectedPlayersForRemoval.includes(player.name)}
-                            onChange={() => togglePlayerSelection(player.name)}
-                            className="w-4 h-4"
-                          />
-                        )}
-                        {hasGameProgress() && (
-                          <span className="bg-gray-300 text-gray-800 text-xs font-bold px-2 py-0.5 rounded-full">
-                            {getRankIcon(player.rank || index + 1)} {player.rank || index + 1}
-                            {player.rank === 1 ? 'st' : player.rank === 2 ? 'nd' : player.rank === 3 ? 'rd' : 'th'}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-2">
-                          {player.name} 
-                          {player.name.startsWith('A') ? '👩' : '🧑'}
-                          {isStreakKing && (
-                            <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white px-3 py-1 rounded-full shadow-lg font-extrabold text-sm animate-pulse">
-                              <span className="text-2xl drop-shadow-lg leading-none" style={{ filter: 'brightness(1.5) contrast(1.2)', lineHeight: '1' }}>👑</span> 
-                              <span className="leading-none">STREAK KING</span>
-                            </span>
-                          )}
-                        </span>
-                        {player.streak > 0 && hasGameProgress() && (
-                          <span className="text-xs bg-yellow-300 text-yellow-900 px-2 py-0.5 rounded-md">
-                            Streak: {player.streak} Wins 🔥
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-sm bg-yellow-200 text-yellow-900 font-semibold px-3 py-1 rounded-full shadow-sm">
-                        Score: {player.score}
-                      </span>
-                    </div>
-                    {!showBulkRemove && (
-                      <form className="flex gap-2 items-center" onSubmit={(e) => handleUpdateScore(player, e)}>
-                        <input 
-                          type="number" 
-                          className="w-32 border border-gray-300 rounded-md p-2" 
-                          placeholder="Score" 
-                          required
-                        />
-                        <button 
-                          type="submit" 
-                          className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-md hover:bg-blue-700"
-                        >
-                          Update
-                        </button>
-                      </form>
+            return (
+              <li key={player.name} className={`p-4 rounded-lg ${getRankClass(player.rank || index + 1)}`}>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3 font-medium">
+                    {showBulkRemove && (
+                      <input
+                        type="checkbox"
+                        checked={selectedPlayersForRemoval.includes(player.name)}
+                        onChange={() => togglePlayerSelection(player.name)}
+                        className="w-4 h-4"
+                      />
                     )}
-                  </li>
-                );
-              });
-            })()}
-          </ul>
+                    {hasGameProgress() && (
+                      <span className="bg-gray-300 text-gray-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                        {getRankIcon(player.rank || index + 1)} {player.rank || index + 1}
+                        {player.rank === 1 ? 'st' : player.rank === 2 ? 'nd' : player.rank === 3 ? 'rd' : 'th'}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-2 flex-wrap">
+                      {player.name} {player.name.startsWith('A') ? '👩' : '🧑'}
+                      {isStreakKing && (
+                        <span className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white px-3 py-1 rounded-full shadow-lg font-extrabold text-sm animate-pulse">
+                          <span className="text-2xl drop-shadow-lg" style={{ filter: 'brightness(1.5) contrast(1.2)' }}>👑</span> 
+                          <span>STREAK KING</span>
+                        </span>
+                      )}
+                    </span>
+                    {player.streak > 0 && hasGameProgress() && (
+                      <span className="text-xs bg-yellow-300 text-yellow-900 px-2 py-0.5 rounded-md">
+                        Streak: {player.streak} Wins 🔥
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sm bg-yellow-200 text-yellow-900 font-semibold px-3 py-1 rounded-full shadow-sm">
+                    Score: {player.score}
+                  </span>
+                </div>
+                {!showBulkRemove && (
+                  <form
+                    className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center mt-3"
+                    onSubmit={(e) => handleUpdateScore(player, e)}
+                  >
+                    <input 
+                      type="number" 
+                      className="w-full sm:w-32 border border-gray-300 rounded-md p-2" 
+                      placeholder="Score" 
+                      required 
+                    />
+                    <button 
+                      type="submit" 
+                      className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-md hover:bg-blue-700"
+                    >
+                      Update
+                    </button>
+                  </form>
+                )}
+              </li>
+            );
+          });
+        })()}
+      </ul>
+    </div>
 
-        </div>
+    {/* Controls */}
+    <div className="mt-6">
+      <button 
+        onClick={toggleControls} 
+        className="text-sm text-white underline hover:text-blue-200"
+      >
+        ⚙️ More Options
+      </button>
+      {showControls && (
+        <div className="mt-4 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-wrap">
+            <button 
+              onClick={() => setShowBulkAdd(true)}
+              className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-2 rounded-xl shadow"
+            >
+              ➕ Add Player(s)
+            </button>
+            <button 
+              onClick={() => setShowBulkRemove(!showBulkRemove)}
+              className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-xl shadow"
+            >
+              ➖ Remove Players
+            </button>
+            <button 
+              onClick={() => setShowDeleteConfirm(true)}
+              className="bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2 rounded-xl shadow"
+            >
+              🗑️ Deactivate Game
+            </button>
+          </div>
 
-        {/* Toggle Controls */}
-        <div className="mt-6">
-          <button 
-            onClick={toggleControls} 
-            className="text-sm text-white underline hover:text-blue-200"
-          >
-            ⚙️ More Options
-          </button>
-          {showControls && (
-            <div className="mt-4 space-y-4">
-              <div className="flex flex-wrap gap-4">
-                <button 
-                  onClick={() => setShowBulkAdd(true)}
-                  className="bg-green-500 hover:bg-green-600 text-white font-semibold px-6 py-2 rounded-xl shadow"
+          {showBulkRemove && (
+            <div className="bg-orange-100 p-4 rounded-lg">
+              <p className="text-gray-800 mb-3">Select players to remove:</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={handleBulkRemovePlayers}
+                  disabled={selectedPlayersForRemoval.length === 0}
+                  className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-md"
                 >
-                  ➕ Add Player(s)
+                  Remove Selected ({selectedPlayersForRemoval.length})
                 </button>
-                <button 
-                  onClick={() => setShowBulkRemove(!showBulkRemove)}
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-xl shadow"
+                <button
+                  onClick={() => {
+                    setShowBulkRemove(false);
+                    setSelectedPlayersForRemoval([]);
+                  }}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
                 >
-                  ➖ Remove Players
-                </button>
-                <button 
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2 rounded-xl shadow"
-                >
-                  🗑️ Deactivate Game
+                  Cancel
                 </button>
               </div>
-
-              {/* Bulk Remove Actions */}
-              {showBulkRemove && (
-                <div className="bg-orange-100 p-4 rounded-lg">
-                  <p className="text-gray-800 mb-3">Select players to remove from the game:</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleBulkRemovePlayers}
-                      disabled={selectedPlayersForRemoval.length === 0}
-                      className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-md"
-                    >
-                      Remove Selected ({selectedPlayersForRemoval.length})
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowBulkRemove(false);
-                        setSelectedPlayersForRemoval([]);
-                      }}
-                      className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
+      )}
+    </div>
 
-        {/* Bulk Add Players Modal */}
-        {showBulkAdd && (
+   {/* Bulk Add Players Modal */}
+   {showBulkAdd && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
             <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Add Player(s)</h3>
@@ -709,12 +711,14 @@ const SingleGame = () => {
           </div>
         )}
 
-        <footer className="mt-6 text-center text-sm text-white">
-          <p>&copy; 2025 Z Games. All rights reserved.</p>
-        </footer>
-        <ToastContainer />
-      </div>
-    </div>
+    <footer className="mt-10 text-center text-sm text-white">
+      <p>&copy; 2025 Z Games. All rights reserved.</p>
+    </footer>
+
+    <ToastContainer />
+  </div>
+</div>
+
   );
 };
 

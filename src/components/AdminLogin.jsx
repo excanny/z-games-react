@@ -1,12 +1,40 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../utils/axiosClient"; 
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import api from "../utils/axiosClient";
+import { setAuthToken, getAuthToken, isTokenExpired, getUserFromToken } from "../utils/jwtUtils"; 
 
 const AdminLogin = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [formData, setFormData] = useState({ email: "", password: "" });
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+
+    // Check if user is already logged in
+    useEffect(() => {
+        const checkExistingAuth = async () => {
+            const token = getAuthToken();
+            if (token && !isTokenExpired(token)) {
+                try {
+                    // Optionally verify token is still valid with server
+                    await api.get('/auth/verify');
+                    // If valid, redirect to dashboard
+                    const from = location.state?.from?.pathname || "/admin-dashboard";
+                    navigate(from, { replace: true });
+                } catch (error) {
+                    // Token is invalid on server, remove it
+                    console.log('Token verification failed:', error);
+                    setAuthToken(null);
+                }
+            } else if (token && isTokenExpired(token)) {
+                // Token exists but is expired
+                console.log('JWT token is expired, removing from storage');
+                setAuthToken(null);
+            }
+        };
+
+        checkExistingAuth();
+    }, [navigate, location]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -29,14 +57,44 @@ const AdminLogin = () => {
             const response = await api.post("/auth/login", formData);
             console.log("Login successful:", response.data);
 
-            // Example: Save token or redirect
-            // localStorage.setItem("token", response.data.token);
-            navigate("/admin-dashboard");
+            // Extract JWT token from response
+            const token = response.data.token || response.data.data?.token || response.data.accessToken;
+            
+            if (token) {
+                // Validate JWT structure
+                const userInfo = getUserFromToken(token);
+                if (userInfo) {
+                    console.log("User info from JWT:", userInfo);
+                    
+                    // Save token using utility function
+                    setAuthToken(token);
+                    
+                    // Redirect to the page they were trying to access, or dashboard
+                    const from = location.state?.from?.pathname || "/admin-dashboard";
+                    navigate(from, { replace: true });
+                } else {
+                    setError("Invalid token format received. Please try again.");
+                }
+            } else {
+                setError("Login successful but no token received. Please try again.");
+            }
 
         } catch (err) {
             console.error("Login error:", err);
             console.error("Error response:", err.response?.data); // Additional debug info
-            setError(err.response?.data?.message || "Login failed. Please check your credentials.");
+            
+            // Handle different error response structures
+            let errorMessage = "Login failed. Please check your credentials.";
+            
+            if (err.response?.data?.message) {
+                errorMessage = err.response.data.message;
+            } else if (err.response?.data?.error) {
+                errorMessage = err.response.data.error;
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+            
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
