@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import GameManager from "./GameManager";
 import axiosClient from "../utils/axiosClient"; 
 import { useAuth } from '../hooks/useAuth';
+import { ToastContainer, toast } from 'react-toastify';
 
 const AdminDashboard = () => {
     const { user, isAuthenticated, isAdmin, logout } = useAuth();
@@ -30,6 +31,10 @@ const AdminDashboard = () => {
     // Available avatars and colors (matching SingleGame)
     const availableAvatars = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦄'];
     const availableColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43', '#10AC84', '#EE5A24', '#0984E3', '#A29BFE', '#FD79A8', '#E17055', '#81ECEC', '#74B9FF', '#A29BFE', '#FD79A8'];
+
+    //Notification functions
+    const gameCreatedNotification = () => toast('Game created successfully!');
+      
 
     // Fetch games on component mount
     useEffect(() => {
@@ -79,6 +84,7 @@ const AdminDashboard = () => {
       try {
         // Update local state with the new game
         setGames(prev => [...prev, gameData]);
+        gameCreatedNotification();
       } catch (error) {
         console.error('Error in createGame:', error);
       }
@@ -94,6 +100,8 @@ const AdminDashboard = () => {
         // Handle different response structures consistently
         const newGame = response.data.data || response.data;
         console.log('New game data:', newGame); // Debug log
+
+        gameCreatedNotification();
         
         // Refresh the games list from server to ensure we have the latest data
         await fetchGames();
@@ -592,7 +600,7 @@ const AdminDashboard = () => {
     </div>
   </div>
 )}
-
+        <ToastContainer />
       </>
     );
   };

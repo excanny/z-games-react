@@ -31,7 +31,7 @@ const SingleGame = () => {
   const availableAvatars = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦄'];
   const availableColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43', '#10AC84', '#EE5A24', '#0984E3', '#A29BFE', '#FD79A8', '#E17055', '#81ECEC', '#74B9FF', '#A29BFE', '#FD79A8'];
 
-
+  //Notification functions
    const addedPlayersNotification = () => toast(`Successfully added players!`);
    const removedPlayersNotification = () => toast('Player(s) removed successfully!');
    const scoreUpdatedNotification = () => toast('Score updated successfully!');
