@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../utils/axiosClient';  
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import axiosClient from '../utils/axiosClient';
+import { Link, useParams } from 'react-router-dom';
 import io from 'socket.io-client';
-import { useParams } from 'react-router-dom';
+import config from "../config";
 
-//const socket = io('http://localhost:5000');
-const socket = io('https://z-games.onrender.com');
 
 const Scoreboard = () => {
   const [gameData, setGameData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [longLoading, setLongLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   const { gameId } = useParams();
+  const socketRef = useRef(null);
 
   const avatarEmojis = {
     'bear': '🐻',
@@ -42,73 +42,163 @@ const Scoreboard = () => {
     return colorMap[hexColor] || 'text-blue-500';
   };
 
-  useEffect(() => {
-    const fetchGameData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        setLongLoading(false);
+  const fetchGameData = async () => {
+    try {
+      setError(null);
+      
+      const response = await axiosClient.get(`/games/${gameId}/leaderboard`, {
+        timeout: 10000,
+      });
 
-        const response = await axiosClient.get(`/games/${gameId}/leaderboard`, {
-          timeout: 10000,
-        });
+      const apiResponse = response.data;
 
-        const apiResponse = response.data;
-
-        if (apiResponse.status !== 'success') {
-          throw new Error(apiResponse.message || 'Failed to fetch game data');
-        }
-
-        const transformedData = {
-          name: apiResponse.data.name,
-          type: 'Game',
-          round: 'Live',
-          lastGamesUpdateAt: new Date(apiResponse.data.lastGamesUpdateAt).toLocaleString('en-US', {
-  month: 'long',
-  day: 'numeric',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-  hour12: true
-}),
-          players: apiResponse.data.leaderboard.map(player => ({
-            name: player.name,
-            points: player.score,
-            rank: player.rank,
-            avatar: player.avatar,
-            color: getColorClass(player.color, player.rank)
-          }))
-        };
-
-        setGameData(transformedData);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+      if (apiResponse.status !== 'success') {
+        throw new Error(apiResponse.message || 'Failed to fetch game data');
       }
+
+      const transformedData = {
+        name: apiResponse.data.name,
+        type: 'Game',
+        round: 'Live',
+        lastGamesUpdateAt: new Date(apiResponse.data.lastGamesUpdateAt).toLocaleString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        }),
+        players: apiResponse.data.leaderboard.map(player => ({
+          name: player.name,
+          points: player.score,
+          rank: player.rank,
+          avatar: player.avatar,
+          color: getColorClass(player.color, player.rank)
+        }))
+      };
+
+      setGameData(transformedData);
+    } catch (err) {
+      console.error('Error fetching game data:', err);
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    // Initialize socket connection
+    const initializeSocket = () => {
+      // Disconnect existing socket if any
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+
+      // Create new socket connection
+     socketRef.current = io(config.socketBaseUrl, {
+        transports: ['websocket', 'polling'],
+        timeout: 20000,
+        forceNew: true
+      });
+
+      const socket = socketRef.current;
+
+      // Connection event handlers
+      const handleConnect = () => {
+        console.log('✅ Connected to socket.io server');
+        setIsConnected(true);
+      };
+
+      const handleDisconnect = (reason) => {
+        console.warn('⚠️ Disconnected from socket.io server:', reason);
+        setIsConnected(false);
+      };
+
+      const handleConnectError = (err) => {
+        console.error('❌ Connection error:', err.message);
+        setIsConnected(false);
+      };
+
+      // Real-time update handlers
+      const handleLeaderboardUpdate = (data) => {
+        console.log('📊 Leaderboard update received:', data);
+        if (data.gameId === gameId) {
+          fetchGameData();
+        }
+      };
+
+      const handlePlayerUpdate = (data) => {
+        console.log('👤 Player update received:', data);
+        if (data.gameId === gameId) {
+          fetchGameData();
+        }
+      };
+
+      // Register event listeners
+      socket.on('connect', handleConnect);
+      socket.on('disconnect', handleDisconnect);
+      socket.on('connect_error', handleConnectError);
+      socket.on('leaderboardUpdated', handleLeaderboardUpdate);
+      socket.on('playerAdded', handlePlayerUpdate);
+      socket.on('playerReactivated', handlePlayerUpdate);
+      socket.on('playerDeactivated', handlePlayerUpdate);
+      socket.on('bulkPlayersAdded', handlePlayerUpdate);
+      socket.on('bulkPlayersReactivated', handlePlayerUpdate);
+
+      // Set initial connection state
+      setIsConnected(socket.connected);
+
+      return socket;
     };
 
-    fetchGameData();
+    // Initialize socket and fetch initial data
+    const socket = initializeSocket();
+    
+    // Fetch initial game data
+    const loadInitialData = async () => {
+      setLoading(true);
+      setLongLoading(false);
+      
+      await fetchGameData();
+      setLoading(false);
+    };
 
+    loadInitialData();
+
+    // Set up long loading timer
     const timer = setTimeout(() => {
       if (loading) setLongLoading(true);
     }, 10000);
 
-    // ✅ Listen for real-time leaderboard updates
-    socket.on('leaderboardUpdated', (data) => {
-      console.log('Leaderboard updated for game:', data.gameId);
-      // Optional: Check if the update is for this gameId
-      if (data.gameId === gameId) {
-        fetchGameData();
-      }
-    });
-
-    // ✅ Cleanup listener on unmount
+    // Cleanup function
     return () => {
       clearTimeout(timer);
-      socket.off('leaderboardUpdated');
+      if (socket) {
+        socket.off('connect');
+        socket.off('disconnect');
+        socket.off('connect_error');
+        socket.off('leaderboardUpdated');
+        socket.off('playerAdded');
+        socket.off('playerReactivated');
+        socket.off('playerDeactivated');
+        socket.off('bulkPlayersAdded');
+        socket.off('bulkPlayersReactivated');
+        socket.disconnect();
+      }
     };
-  }, [gameId]);
+  }, [gameId]); // Only depend on gameId
+
+  // Add reconnection logic
+  useEffect(() => {
+    if (!isConnected && gameData) {
+      console.log('🔄 Attempting to reconnect...');
+      const reconnectTimer = setTimeout(() => {
+        if (socketRef.current) {
+          socketRef.current.connect();
+        }
+      }, 3000);
+
+      return () => clearTimeout(reconnectTimer);
+    }
+  }, [isConnected, gameData]);
 
   const getRankDisplay = (rank) => {
     switch (rank) {
@@ -141,6 +231,28 @@ const Scoreboard = () => {
           <h2 className="text-2xl font-bold mb-2">Error loading game</h2>
           <p className="mb-4">{error}</p>
           <div className="mt-4">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-blue-600 text-white px-4 py-2 rounded mr-4 hover:bg-blue-700"
+            >
+              🔄 Retry
+            </button>
+            <Link to="/" className="text-blue-600 hover:underline">
+              ⬅️ Back to Home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!gameData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-center">
+        <div>
+          <div className="text-6xl mb-4">🎮</div>
+          <h2 className="text-2xl font-bold mb-2">No game data available</h2>
+          <div className="mt-4">
             <Link to="/" className="text-blue-600 hover:underline">
               ⬅️ Back to Home
             </Link>
@@ -151,9 +263,7 @@ const Scoreboard = () => {
   }
 
   const { name, type, round, players, lastGamesUpdateAt } = gameData;
-
-  console.log('Game data:', gameData);
-  const highestScore = Math.max(...players.map(p => p.points));
+  const highestScore = players.length > 0 ? Math.max(...players.map(p => p.points)) : 0;
 
   return (
     <div className="min-h-screen py-8 px-4">
@@ -164,6 +274,17 @@ const Scoreboard = () => {
             <span className="text-blue-600">-GAMES</span>
           </div>
           <div className="text-xl font-semibold text-gray-700">Scoreboard</div>
+        </div>
+
+        <div className="text-center text-sm mb-4">
+          <span className={isConnected ? 'text-green-600' : 'text-red-500'}>
+            {isConnected ? '🟢 Connected to Live Server' : '🔴 Disconnected from Live Server'}
+          </span>
+          {!isConnected && (
+            <div className="text-xs text-gray-500 mt-1">
+              Attempting to reconnect...
+            </div>
+          )}
         </div>
 
         <div className="text-center mb-4">
@@ -179,41 +300,48 @@ const Scoreboard = () => {
           </div>
 
           <div className="p-8 space-y-4">
-            {players.map(player => {
-              const isTopThree = player.rank <= 3;
-              return (
-                <div
-                  key={player.name}
-                  className={`flex items-center justify-between p-6 rounded-xl ${
-                    isTopThree
-                      ? 'bg-gradient-to-r from-blue-50 to-slate-50 border-2 border-blue-100'
-                      : 'bg-slate-50 border'
-                  }`}
-                >
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl font-bold w-12 text-center">
-                        {getRankDisplay(player.rank)}
-                      </span>
-                      <span className="text-2xl">
-                        {avatarEmojis[player.avatar] || '👤'}
-                      </span>
-                    </div>
-                    <div>
-                      <div className={`text-xl font-bold ${isTopThree ? 'text-slate-800' : 'text-slate-700'}`}>
-                        {player.name}
+            {players.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <div className="text-4xl mb-4">🎯</div>
+                <p>No active players yet</p>
+              </div>
+            ) : (
+              players.map(player => {
+                const isTopThree = player.rank <= 3;
+                return (
+                  <div
+                    key={player.name}
+                    className={`flex items-center justify-between p-6 rounded-xl transition-all duration-300 ${
+                      isTopThree
+                        ? 'bg-gradient-to-r from-blue-50 to-slate-50 border-2 border-blue-100'
+                        : 'bg-slate-50 border'
+                    }`}
+                  >
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl font-bold w-12 text-center">
+                          {getRankDisplay(player.rank)}
+                        </span>
+                        <span className="text-2xl">
+                          {avatarEmojis[player.avatar] || '👤'}
+                        </span>
+                      </div>
+                      <div>
+                        <div className={`text-xl font-bold ${isTopThree ? 'text-slate-800' : 'text-slate-700'}`}>
+                          {player.name}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-2xl font-bold ${isTopThree ? 'text-blue-600' : 'text-slate-600'}`}>
-                      {player.points.toLocaleString()}
+                    <div className="text-right">
+                      <div className={`text-2xl font-bold ${isTopThree ? 'text-blue-600' : 'text-slate-600'}`}>
+                        {player.points.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-slate-500">points</div>
                     </div>
-                    <div className="text-sm text-slate-500">points</div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           <div className="bg-slate-50 px-8 py-6 border-t">
