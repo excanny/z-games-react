@@ -8,6 +8,9 @@ import Scoreboard from './components/Scoreboard';
 import SingleGame from './components/SingleGame';
 import NotFound  from './components/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
+import GameTemplateWizard from './components/GameTemplateForm/GameTemplateWizard';
+import TournamentLeaderboard from './components/TournamentLeaderboard';
+import TournamentScoring from './components/tournaments/scoring/TournamentScoring';
 
 function App() {
 
@@ -31,6 +34,9 @@ function App() {
             <Route path="/admin-dashboard-leaderboard" element={<Leaderboard />} />
             <Route path="/scoreboard/:gameId" element={<Scoreboard />} />
             <Route path="/game/:gameId" element={<SingleGame />} />
+            <Route path="/game-setup" element={<GameTemplateWizard />} />
+            <Route path="/tournament-leaderboard" element={<TournamentLeaderboard />} />
+            <Route path="/tournament-scoring" element={<TournamentScoring />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

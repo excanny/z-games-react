@@ -3,11 +3,23 @@ import GameManager from "./GameManager";
 import axiosClient from "../utils/axiosClient"; 
 import { useAuth } from '../hooks/useAuth';
 import { ToastContainer, toast } from 'react-toastify';
+import AdminHeader from './AdminHeader';
+import StatsCards from './StatsCards';
+import GameModal from './GameModal';
+import TournamentModal from './TournamentModal';
 
 const AdminDashboard = () => {
     const { user, isAuthenticated, isAdmin, logout } = useAuth();
+    const [tournamentsList, setTournamentsList] = useState([]);
+    const [selectedGames, setSelectedGames] = useState(new Set()); // Track selected games
 
-    
+    // Get initial tab from URL hash or default to 'games'
+    const getInitialTab = () => {
+      const hash = window.location.hash.replace('#', '');
+      return ['games', 'tournaments'].includes(hash) ? hash : 'games';
+    };
+
+    const [activeTab, setActiveTab] = useState(getInitialTab);
     const [games, setGames] = useState([]);
     const [selectedGame, setSelectedGame] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,17 +37,40 @@ const AdminDashboard = () => {
     const [longLoading, setLongLoading] = useState(false);
     const [error, setError] = useState(null);
 
-  
     const gameManagerRef = React.useRef();
 
     // Available avatars and colors (matching SingleGame)
     const availableAvatars = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦄'];
     const availableColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43', '#10AC84', '#EE5A24', '#0984E3', '#A29BFE', '#FD79A8', '#E17055', '#81ECEC', '#74B9FF', '#A29BFE', '#FD79A8'];
 
+    // Tab management
+    const tabs = [
+      { id: 'games', label: 'Add Game', icon: '🎮' },
+      { id: 'tournaments', label: 'Add Tournament', icon: '🏆' }
+    ];
+
+    // Update URL hash when tab changes
+    useEffect(() => {
+      window.location.hash = activeTab;
+    }, [activeTab]);
+
+    // Listen for hash changes (back/forward navigation)
+    useEffect(() => {
+      const handleHashChange = () => {
+        const hash = window.location.hash.replace('#', '');
+        if (['games', 'tournaments'].includes(hash)) {
+          setActiveTab(hash);
+        }
+      };
+
+      window.addEventListener('hashchange', handleHashChange);
+      return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+
     //Notification functions
     const gameCreatedNotification = () => toast('Game created successfully!');
+    const tournamentCreatedNotification = () => toast('Tournament created successfully!');
       
-
     // Fetch games on component mount
     useEffect(() => {
       const initializeData = async () => {
@@ -45,6 +80,8 @@ const AdminDashboard = () => {
         
         try {
           await fetchGames();
+          await fetchTournaments();
+          //console.log('Games and tournaments fetched successfully');
         } catch (err) {
           console.error('Error initializing dashboard:', err);
           setError(err.message || 'Failed to load dashboard data');
@@ -79,6 +116,18 @@ const AdminDashboard = () => {
       }
     };
 
+    const fetchTournaments = async () => {
+        try {
+          const response = await fetch('http://localhost:5000/api/tournaments');
+          const tournaments = await response.json();
+           console.log('Fetched tournaments:', tournaments); // Debug log
+       
+          setTournamentsList(tournaments.data);
+        } catch (error) {
+          console.error('Error fetching games:', error);
+        }
+      };
+      
     // Updated createGame to handle game data from API responses
     const createGame = async (gameData) => {
       try {
@@ -114,15 +163,64 @@ const AdminDashboard = () => {
         setIsSubmitting(false);
       }
     };
+
+    // Tournament creation function (placeholder)
+    const createTournamentFromModal = async (tournamentData) => {
+      setIsSubmitting(true);
+      try {
+        // Add your tournament creation API call here
+        // const response = await axiosClient.post('/tournaments', tournamentData);
+        console.log('Creating tournament:', tournamentData);
+        
+        tournamentCreatedNotification();
+        
+        // You would refresh tournaments list here
+        await fetchTournaments();
+        
+        return tournamentData;
+      } catch (error) {
+        console.error('Error creating tournament:', error);
+        throw error;
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
   
     const selectGame = (game) => {
       setSelectedGame(game);
     };
+
+    // Handle game selection with proper unique identification
+    const handleGameSelect = (gameId) => {
+      const newSelectedGames = new Set(selectedGames);
+      if (newSelectedGames.has(gameId)) {
+        newSelectedGames.delete(gameId);
+      } else {
+        newSelectedGames.add(gameId);
+      }
+      setSelectedGames(newSelectedGames);
+    };
+
+    // Check if a game is selected
+    const isGameSelected = (gameId) => {
+      return selectedGames.has(gameId);
+    };
   
-    const deleteGame = (gameId) => {
-      setGames(games.filter(g => g.id !== gameId));
-      if (selectedGame?.id === gameId) {
-        setSelectedGame(null);
+    const deleteGame = async (gameId) => {
+      try {
+        await axiosClient.delete(`/games/${gameId}`);
+        setGames(games.filter(g => g.id !== gameId));
+        if (selectedGame?.id === gameId) {
+          setSelectedGame(null);
+        }
+        // Remove from selected games if it was selected
+        const newSelectedGames = new Set(selectedGames);
+        newSelectedGames.delete(gameId);
+        setSelectedGames(newSelectedGames);
+        toast('Game deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting game:', error);
+        toast.error('Failed to delete game');
       }
     };
 
@@ -232,6 +330,31 @@ const AdminDashboard = () => {
       }
     };
 
+    // Submit tournament function (placeholder)
+    const submitTournament = async () => {
+      if (gameForm.name.trim() && participants.length > 0) {
+        try {
+          const tournamentData = {
+            name: gameForm.name.trim(),
+            description: gameForm.description.trim(),
+            participants: participants
+          };
+
+          console.log('Submitting tournament data:', tournamentData);
+
+          await createTournamentFromModal(tournamentData);
+          
+          closeModal();
+          
+        } catch (error) {
+          console.error('Error creating tournament:', error);
+          alert('Failed to create tournament. Please try again.');
+        }
+      } else {
+        alert('Please enter a tournament name and add at least one participant.');
+      }
+    };
+
     // Helper function to get avatar emoji (matching GameManager)
     const getAvatarEmoji = (avatar) => {
       // For the new system, avatars are already emojis
@@ -245,6 +368,11 @@ const AdminDashboard = () => {
         rabbit: '🐰', wolf: '🐺', owl: '🦉', dragon: '🐉'
       };
       return avatarMap[avatar] || '🎮';
+    };
+
+    // Helper function to get unique game ID
+    const getGameId = (game, index) => {
+      return game.id || game._id || `game-${index}`;
     };
 
   if (!isAuthenticated) {
@@ -292,62 +420,248 @@ const AdminDashboard = () => {
         </div>
       );
     }
+
+     const statsData = {
+      totalGames: games.length,
+      totalPlayers: games.reduce((acc, game) => acc + (game.participants?.length || 0), 0),
+      highestScore: 0,
+      activeGames: games.filter(g => g.status === 'active').length
+    };
   
-    const totalGames = games.length;
-    const totalPlayers = games.reduce((acc, game) => acc + (game.participants?.length || 0), 0);
- 
     return (
       <>
         <div className="min-h-screen bg-gradient-to-br from-blue-700 to-blue-400 p-3 sm:p-4 md:p-6 lg:p-8 font-sans">
-          {/* Header - Responsive text sizes */}
-          <header className="text-center mb-8 sm:mb-10 lg:mb-12 text-white px-2">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">Z Games Admin Dashboard</h1>
-            <p className="text-sm sm:text-base text-blue-200 max-w-2xl mx-auto">
-              Manage games, players, and scores in real-time
-            </p>
-          </header>
+          <AdminHeader />
           
-          {/* Stats Cards - Responsive grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8 lg:mb-10">
-            <div className="bg-white/10 backdrop-blur rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 text-center text-white">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{totalGames}</h2>
-              <p className="mt-1 text-xs sm:text-sm text-blue-200">Total Games</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 text-center text-white">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{totalPlayers}</h2>
-              <p className="mt-1 text-xs sm:text-sm text-blue-200">Total Players</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 text-center text-white">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">0</h2>
-              <p className="mt-1 text-xs sm:text-sm text-blue-200">Highest Score</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 text-center text-white">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">{games.filter(g => g.status === 'active').length}</h2>
-              <p className="mt-1 text-xs sm:text-sm text-blue-200">Active Games</p>
-            </div>
-          </div>
+          <StatsCards stats={statsData} />
           
-          {/* Game Management Section - Responsive padding and spacing */}
+          {/* Tabbed Management Section */}
           <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl">
+            {/* Tab Navigation */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b pb-4 mb-4 sm:mb-6 gap-3 sm:gap-0">
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-semibold text-blue-700">Game Management</h3>
+              <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`
+                      flex items-center space-x-2 px-3 py-2 sm:px-4 sm:py-2 rounded-md text-sm sm:text-base font-medium transition-all duration-200
+                      ${activeTab === tab.id 
+                        ? 'bg-white text-blue-700 shadow-sm' 
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                      }
+                    `}
+                  >
+                    <span className="text-lg">{tab.icon}</span>
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.label.split(' ')[1]}</span>
+                  </button>
+                ))}
+              </div>
+              
+              {/* Action Button - changes based on active tab */}
               <button 
                 className="bg-gradient-to-r from-green-400 to-green-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full shadow hover:scale-105 transition text-sm sm:text-base font-medium" 
                 onClick={openModal}
               >
-                <span className="hidden sm:inline">Add New Game</span>
-                <span className="sm:hidden">+ New Game</span>
+                <span className="hidden sm:inline">
+                  {activeTab === 'games' ? 'Add New Game' : 'Add New Tournament'}
+                </span>
+                <span className="sm:hidden">
+                  {activeTab === 'games' ? '+ New Game' : '+ New Tournament'}
+                </span>
               </button>
             </div>
             
-            <GameManager 
-              ref={gameManagerRef}
-              games={games} // Pass games from AdminDashboard
-              onCreateGame={createGame}
-              onSelectGame={selectGame}
-              selectedGame={selectedGame}
-              onDeleteGame={deleteGame}
-            />
+            {/* Tab Content */}
+<div className="tab-content">
+  {activeTab === 'games' && (
+    <div>
+      {/* Games List */}
+      <div className="games-list mb-4">
+        <h3 className="text-lg font-semibold mb-3">Created Games</h3>
+        {games && games.length > 0 ? (
+          <div className="space-y-2">
+            {games.map((game, index) => {
+              const gameId = getGameId(game, index);
+              const isSelected = isGameSelected(gameId);
+              
+              return (
+                <div 
+                  key={gameId}
+                  className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                    isSelected 
+                      ? 'bg-blue-100 border-blue-300 shadow-md' 
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                  onClick={() => handleGameSelect(gameId)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleGameSelect(gameId);
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                        <h4 className="font-medium">{game.name || `Game ${index + 1}`}</h4>
+                      </div>
+                      <p className="text-sm text-gray-600 ml-6">
+                        Players: {game.players?.length || game.participants?.length || 0} | 
+                        Status: {game.status || 'Active'}
+                      </p>
+                      {game.description && (
+                        <p className="text-sm text-gray-500 mt-1 ml-6">{game.description}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                        onClick={() => selectGame(game)}
+                      >
+                        View
+                      </button>
+                      <button className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors">
+                        Edit
+                      </button>
+                      <button 
+                        className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                        onClick={() => deleteGame(gameId)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>No games created yet</p>
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Create Your First Game
+            </button>
+          </div>
+        )}
+        
+        {/* Bulk Actions */}
+        {selectedGames.size > 0 && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-700">
+                {selectedGames.size} game{selectedGames.size > 1 ? 's' : ''} selected
+              </span>
+              <div className="flex gap-2">
+                <button 
+                  className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                  onClick={() => {
+                    if (window.confirm(`Are you sure you want to delete ${selectedGames.size} game(s)?`)) {
+                      selectedGames.forEach(gameId => deleteGame(gameId));
+                    }
+                  }}
+                >
+                  Delete Selected
+                </button>
+                <button 
+                  className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
+                  onClick={() => setSelectedGames(new Set())}
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Game Modal */}
+      <GameModal 
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        onCreateGame={createGameFromModal}
+        gameManagerRef={gameManagerRef}
+      />
+    </div>
+  )}
+
+  {activeTab === 'tournaments' && (
+    <div>
+      {/* Tournaments List */}
+      <div className="tournaments-list mb-4">
+        <h3 className="text-lg font-semibold mb-3">Created Tournaments</h3>
+        {tournamentsList && tournamentsList.length > 0 ? (
+          <div className="space-y-2">
+            {tournamentsList.map((tournament, index) => {
+              const tournamentId = tournament.id || tournament._id || `tournament-${index}`;
+              
+              return (
+                <div key={tournamentId} className="p-3 border rounded-lg bg-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium">{tournament.name || `Tournament ${index + 1}`}</h4>
+                      <p className="text-sm text-gray-600">
+                        Games: {tournament.games?.length || 0} | 
+                        Participants: {tournament.participants?.length || 0} |
+                        Status: {tournament.status || 'Active'}
+                      </p>
+                      {tournament.description && (
+                        <p className="text-sm text-gray-500 mt-1">{tournament.description}</p>
+                      )}
+                      {tournament.startDate && (
+                        <p className="text-sm text-gray-500">
+                          Start Date: {new Date(tournament.startDate).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600">
+                        View
+                      </button>
+                      <button className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">
+                        Edit
+                      </button>
+                      <button className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>No tournaments created yet</p>
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="mt-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+            >
+              Create Your First Tournament
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Tournament Modal */}
+      <TournamentModal 
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        onCreateTournament={createTournamentFromModal}
+        isSubmitting={isSubmitting}
+        gamesList={games}
+      />
+    </div>
+  )}
+</div>
+         
           </div>
 
           {/* Footer - Responsive text */}
@@ -356,250 +670,6 @@ const AdminDashboard = () => {
           </footer>
         </div>
 
-       {/* Modal - Fully responsive */}
-{isModalOpen && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
-    <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 relative animate-fade-in-down">
-      
-      {/* Close Button - Responsive positioning */}
-      <button 
-        onClick={closeModal} 
-        className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-red-500 text-xl sm:text-2xl font-bold w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition"
-        disabled={isSubmitting}
-      >
-        ×
-      </button>
-      
-      {/* Header - Responsive text */}
-      <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-blue-800 mb-4 text-center pr-8 sm:pr-0">
-        Create New Game
-      </h2>
-      
-      {/* Game Info - Responsive inputs */}
-      <div className="space-y-3 mb-4 sm:mb-6">
-        <input 
-          type="text" 
-          value={gameForm.name}
-          onChange={(e) => handleInputChange('name', e.target.value)}
-          placeholder="Enter game name" 
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 sm:px-4 sm:py-3 focus:ring focus:outline-none text-sm sm:text-base"
-          disabled={isSubmitting}
-        />
-        <textarea 
-          value={gameForm.description}
-          onChange={(e) => handleInputChange('description', e.target.value)}
-          placeholder="Brief description of the game" 
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 sm:px-4 sm:py-3 focus:ring focus:outline-none resize-none text-sm sm:text-base"
-          rows="2"
-          disabled={isSubmitting}
-        />
-      </div>
-      
-      {/* Participants Section - Responsive layout */}
-      <div className="border-t pt-4">
-        <h3 className="text-base sm:text-lg font-semibold text-green-600 text-center mb-4">
-          Add Participants (<span>{participants.length}</span>) 
-          <span className="text-red-500 text-xs sm:text-sm font-normal block sm:inline"> *Required</span>
-        </h3>
-        
-        {participantsToAdd.length === 0 ? (
-          <>
-            {/* Bulk Entry - Responsive layout */}
-            <div className="bg-green-50 rounded-lg p-3 sm:p-4 mb-4">
-              <h4 className="font-medium text-green-800 mb-2 sm:mb-3 text-sm sm:text-base">
-                Add Multiple Participants
-              </h4>
-              <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">
-                Enter participant names, one per line:
-              </p>
-              <textarea
-                value={bulkParticipants}
-                onChange={(e) => setBulkParticipants(e.target.value)}
-                placeholder="Player 1&#10;Player 2&#10;Player 3"
-                className="w-full h-20 sm:h-24 border border-gray-300 rounded-md p-2 sm:p-3 text-gray-800 text-xs sm:text-sm"
-                disabled={isSubmitting}
-              />
-              <div className="flex justify-center mt-2 sm:mt-3">
-                <button
-                  onClick={processBulkParticipantNames}
-                  disabled={!bulkParticipants.trim() || isSubmitting}
-                  className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next: Customize Participants
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          // Step 2: Customize avatars and colors - Responsive grid
-          <div className="bg-yellow-50 rounded-lg p-3 sm:p-4 mb-4">
-            <h4 className="font-medium text-yellow-800 mb-2 sm:mb-3 text-sm sm:text-base">
-              Customize Each Participant's Avatar and Color:
-            </h4>
-            <div className="space-y-3 sm:space-y-4 max-h-48 sm:max-h-64 overflow-y-auto">
-              {participantsToAdd.map((participant) => (
-                <div key={participant.id} className="border border-gray-200 rounded-lg p-3 sm:p-4 bg-white">
-                  <div className="flex items-center justify-between mb-2 sm:mb-3">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div 
-                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-base sm:text-xl"
-                        style={{ backgroundColor: participant.color }}
-                      >
-                        {participant.avatar}
-                      </div>
-                      <span className="font-medium text-gray-800 text-sm sm:text-base truncate">
-                        {participant.name}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => removeParticipantFromList(participant.id)}
-                      className="text-red-500 hover:text-red-700 text-xs sm:text-sm px-2 py-1 rounded hover:bg-red-50"
-                      disabled={isSubmitting}
-                    >
-                      ✕ Remove
-                    </button>
-                  </div>
-                  
-                  {/* Avatar Selection - Responsive grid */}
-                  <div className="mb-2 sm:mb-3">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                      Avatar:
-                    </label>
-                    <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-1">
-                      {availableAvatars.slice(0, 12).map((avatar) => (
-                        <button
-                          key={avatar}
-                          onClick={() => updateParticipantDetails(participant.id, 'avatar', avatar)}
-                          className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm hover:scale-110 transition-transform ${
-                            participant.avatar === avatar 
-                              ? 'ring-2 ring-blue-500 bg-blue-100' 
-                              : 'hover:bg-gray-100'
-                          }`}
-                          disabled={isSubmitting}
-                        >
-                          {avatar}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Color Selection - Responsive grid */}
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                      Color:
-                    </label>
-                    <div className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-1">
-                      {availableColors.slice(0, 12).map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => updateParticipantDetails(participant.id, 'color', color)}
-                          className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full hover:scale-110 transition-transform ${
-                            participant.color === color 
-                              ? 'ring-2 ring-gray-600' 
-                              : ''
-                          }`}
-                          style={{ backgroundColor: color }}
-                          title={color}
-                          disabled={isSubmitting}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            {/* Action buttons - Responsive layout */}
-            <div className="flex flex-col sm:flex-row gap-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
-              <button
-                onClick={confirmParticipants}
-                className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md font-medium text-xs sm:text-sm"
-                disabled={isSubmitting}
-              >
-                Add {participantsToAdd.length} Participants
-              </button>
-              <button
-                onClick={() => setParticipantsToAdd([])}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-md text-xs sm:text-sm"
-                disabled={isSubmitting}
-              >
-                ← Back to Names
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {/* Warning message - Responsive */}
-        {participants.length === 0 && (
-          <div className="mt-3 sm:mt-4 text-center text-xs sm:text-sm text-amber-600 bg-amber-50 p-2 sm:p-3 rounded-lg">
-            ⚠️ Please add at least one participant to create a game.
-          </div>
-        )}
-        
-        {/* Participant List - Responsive */}
-        {participants.length > 0 && (
-          <div className="mt-3 sm:mt-4 max-h-32 sm:max-h-40 overflow-y-auto">
-            <div className="text-xs sm:text-sm font-medium text-gray-700 mb-2">
-              Participants Added:
-            </div>
-            <ul className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-gray-700">
-              {participants.map(participant => (
-                <li key={participant.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
-                  <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
-                    <div 
-                      className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-gray-300 flex items-center justify-center text-xs flex-shrink-0"
-                      style={{ backgroundColor: participant.color }}
-                    >
-                      {getAvatarEmoji(participant.avatar)}
-                    </div>
-                    <span className="font-medium truncate">{participant.name}</span>
-                  </div>
-                  <button 
-                    onClick={() => removeParticipant(participant.id)}
-                    className="text-red-500 hover:text-red-700 font-bold w-5 h-5 sm:w-6 sm:h-6 rounded-full hover:bg-red-100 flex items-center justify-center text-xs sm:text-sm flex-shrink-0 ml-2"
-                    title="Remove participant"
-                    disabled={isSubmitting}
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-      
-      {/* Submit Game - Responsive buttons */}
-      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 mt-4 sm:mt-6">
-        <button 
-          onClick={submitGame} 
-          disabled={!gameForm.name.trim() || participants.length === 0 || isSubmitting}
-          className="flex-1 bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold px-4 py-3 sm:px-6 sm:py-3 rounded-full hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-sm sm:text-base"
-          title={!gameForm.name.trim() || participants.length === 0 ? 'Please enter a game name and add at least one participant' : 'Create the game'}
-        >
-          {isSubmitting ? (
-            <>
-              <span className="animate-spin inline-block w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-              Creating...
-            </>
-          ) : (
-            <>
-              <span className="sm:hidden">🎮 Create</span>
-              <span className="hidden sm:inline">🎮 Create Game</span>
-            </>
-          )}
-        </button>
-        <button 
-          onClick={closeModal}
-          className="px-4 py-3 sm:px-6 sm:py-3 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 transition text-sm sm:text-base"
-          disabled={isSubmitting}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
         <ToastContainer />
       </>
     );
