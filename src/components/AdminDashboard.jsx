@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import GameManager from "./GameManager";
+import { Link } from "react-router-dom";
+//import GameManager from "./GameManager";
 import axiosClient from "../utils/axiosClient"; 
 import { useAuth } from '../hooks/useAuth';
 import { ToastContainer, toast } from 'react-toastify';
@@ -46,7 +47,7 @@ const AdminDashboard = () => {
     // Tab management
     const tabs = [
       { id: 'games', label: 'Add Game', icon: '🎮' },
-      { id: 'tournaments', label: 'Add Tournament', icon: '🏆' }
+      { id: 'tournaments', label: 'Add Game Session', icon: '🏆' }
     ];
 
     // Update URL hash when tab changes
@@ -69,7 +70,7 @@ const AdminDashboard = () => {
 
     //Notification functions
     const gameCreatedNotification = () => toast('Game created successfully!');
-    const tournamentCreatedNotification = () => toast('Tournament created successfully!');
+    const tournamentCreatedNotification = () => toast('Game session created successfully!');
       
     // Fetch games on component mount
     useEffect(() => {
@@ -106,6 +107,7 @@ const AdminDashboard = () => {
     const fetchGames = async () => {
       try {
         const response = await axiosClient.get('/games');
+        debugger
         const gamesData = response.data.data || response.data || [];
         console.log('Fetched games:', gamesData); // Debug log
         setGames(gamesData);
@@ -120,7 +122,6 @@ const AdminDashboard = () => {
         try {
           const response = await fetch('http://localhost:5000/api/tournaments');
           const tournaments = await response.json();
-           console.log('Fetched tournaments:', tournaments); // Debug log
        
           setTournamentsList(tournaments.data);
         } catch (error) {
@@ -168,9 +169,6 @@ const AdminDashboard = () => {
     const createTournamentFromModal = async (tournamentData) => {
       setIsSubmitting(true);
       try {
-        // Add your tournament creation API call here
-        // const response = await axiosClient.post('/tournaments', tournamentData);
-        console.log('Creating tournament:', tournamentData);
         
         tournamentCreatedNotification();
         
@@ -179,7 +177,7 @@ const AdminDashboard = () => {
         
         return tournamentData;
       } catch (error) {
-        console.error('Error creating tournament:', error);
+        console.error('Error creating game session:', error);
         throw error;
       } finally {
         setIsSubmitting(false);
@@ -340,18 +338,16 @@ const AdminDashboard = () => {
             participants: participants
           };
 
-          console.log('Submitting tournament data:', tournamentData);
-
           await createTournamentFromModal(tournamentData);
           
           closeModal();
           
         } catch (error) {
-          console.error('Error creating tournament:', error);
-          alert('Failed to create tournament. Please try again.');
+          console.error('Error creating game session:', error);
+          alert('Failed to create game session. Please try again.');
         }
       } else {
-        alert('Please enter a tournament name and add at least one participant.');
+        alert('Please enter a game session name and add at least one participant.');
       }
     };
 
@@ -461,206 +457,270 @@ const AdminDashboard = () => {
               
               {/* Action Button - changes based on active tab */}
               <button 
-                className="bg-gradient-to-r from-green-400 to-green-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full shadow hover:scale-105 transition text-sm sm:text-base font-medium" 
-                onClick={openModal}
-              >
-                <span className="hidden sm:inline">
-                  {activeTab === 'games' ? 'Add New Game' : 'Add New Tournament'}
-                </span>
-                <span className="sm:hidden">
-                  {activeTab === 'games' ? '+ New Game' : '+ New Tournament'}
-                </span>
-              </button>
+                  className={`bg-gradient-to-r from-green-400 to-green-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-full shadow transition text-sm sm:text-base font-medium 
+                    ${activeTab === 'games' ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+                  onClick={openModal}
+                  disabled={activeTab === 'games'}
+                >
+                  <span className="hidden sm:inline">
+                    {activeTab === 'games' ? 'Add New Game' : 'Add New Game Session'}
+                  </span>
+                  <span className="sm:hidden">
+                    {activeTab === 'games' ? '+ New Game' : '+ New Game Session'}
+                  </span>
+                </button>
+
             </div>
             
             {/* Tab Content */}
-<div className="tab-content">
-  {activeTab === 'games' && (
-    <div>
-      {/* Games List */}
-      <div className="games-list mb-4">
-        <h3 className="text-lg font-semibold mb-3">Created Games</h3>
-        {games && games.length > 0 ? (
-          <div className="space-y-2">
-            {games.map((game, index) => {
-              const gameId = getGameId(game, index);
-              const isSelected = isGameSelected(gameId);
-              
-              return (
-                <div 
-                  key={gameId}
-                  className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
-                    isSelected 
-                      ? 'bg-blue-100 border-blue-300 shadow-md' 
-                      : 'bg-gray-50 hover:bg-gray-100'
-                  }`}
-                  onClick={() => handleGameSelect(gameId)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleGameSelect(gameId);
-                          }}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                        />
-                        <h4 className="font-medium">{game.name || `Game ${index + 1}`}</h4>
+            <div className="tab-content">
+              {activeTab === 'games' && (
+                <div>
+                  {/* Games List */}
+                  <div className="games-list mb-6">
+                    <h3 className="text-xl font-bold mb-6 text-gray-900">Games</h3>
+                    {games && games.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {games.map((game, index) => {
+                          const gameId = getGameId(game, index);
+                          
+                          return (
+                            <div 
+                              key={gameId}
+                              className="group relative bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-2xl shadow-sm border border-blue-200/60 hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1"
+                            >
+                              <div className="p-4">
+                                <div className="mb-3">
+                                  <h4 className="font-bold text-gray-900 text-lg leading-tight mb-2">{game.name || `Game ${index + 1}`}</h4>
+                                  <div className="inline-flex items-center gap-2 mb-3">
+                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Code:</span>
+                                    <span className="font-mono text-sm font-semibold text-gray-800 bg-white/60 px-2 py-1 rounded-lg border border-gray-200/50">
+                                      {game.gameCode.toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-1">
+                                      {/* Player avatars */}
+                                      {(game.players || game.participants || []).slice(0, 3).map((player, idx) => (
+                                        <div 
+                                          key={idx}
+                                          className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white text-xs font-bold shadow-sm border-2 border-white"
+                                          style={{ marginLeft: idx > 0 ? '-8px' : '0' }}
+                                        >
+                                          {player.name?.charAt(0) || player.charAt(0) || '?'}
+                                        </div>
+                                      ))}
+                                      {(game.players?.length || game.participants?.length || 0) > 3 && (
+                                        <div className="w-7 h-7 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-bold shadow-sm border-2 border-white ml-1">
+                                          +{(game.players?.length || game.participants?.length || 0) - 3}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Link to={`/game/${game._id}`}>
+                                  <button 
+                                    className="flex-1 px-4 py-2 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    onClick={() => selectGame(game)}
+                                  >
+                                    View Game
+                                  </button>
+                                  </Link>
+                                  <button 
+                                    className="p-2 text-gray-600 hover:text-gray-800 hover:bg-white/60 rounded-xl transition-all duration-200 group-hover:opacity-100 opacity-70"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // Edit functionality
+                                    }}
+                                     disabled
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                  <button 
+                                    className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 group-hover:opacity-100 opacity-70"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteGame(gameId);
+                                    }}
+                                     disabled
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <p className="text-sm text-gray-600 ml-6">
-                        Players: {game.players?.length || game.participants?.length || 0} | 
-                        Status: {game.status || 'Active'}
-                      </p>
-                      {game.description && (
-                        <p className="text-sm text-gray-500 mt-1 ml-6">{game.description}</p>
-                      )}
-                    </div>
-                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                      <button 
-                        className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                        onClick={() => selectGame(game)}
-                      >
-                        View
-                      </button>
-                      <button className="px-3 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors">
-                        Edit
-                      </button>
-                      <button 
-                        className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                        onClick={() => deleteGame(gameId)}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    ) : (
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center">
+                          <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1a3 3 0 000-6h-1m4 6V4a3 3 0 00-3-3H9a3 3 0 00-3 3v6m4 0a1 1 0 011 1v3a1 1 0 01-1 1H9a1 1 0 01-1-1v-3a1 1 0 011-1m4 0h2a1 1 0 011 1v3a1 1 0 01-1 1h-2a1 1 0 01-1-1v-3a1 1 0 011-1z" />
+                          </svg>
+                        </div>
+                        <h4 className="text-xl font-bold text-gray-900 mb-2">No games yet</h4>
+                        <p className="text-gray-600 mb-6 max-w-md mx-auto">Start your gaming journey by creating your first game. It's quick and easy!</p>
+                        <button 
+                          onClick={() => setIsModalOpen(true)}
+                          className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl hover:from-blue-700 hover:to-blue-800 font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                        >
+                          Create Your First Game
+                        </button>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Game Modal */}
+                  <GameModal 
+                    isOpen={isModalOpen}
+                    onClose={closeModal}
+                    onCreateGame={createGameFromModal}
+                    gameManagerRef={gameManagerRef}
+                  />
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>No games created yet</p>
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Create Your First Game
-            </button>
-          </div>
-        )}
-        
-        {/* Bulk Actions */}
-        {selectedGames.size > 0 && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-blue-700">
-                {selectedGames.size} game{selectedGames.size > 1 ? 's' : ''} selected
-              </span>
-              <div className="flex gap-2">
-                <button 
-                  className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
-                  onClick={() => {
-                    if (window.confirm(`Are you sure you want to delete ${selectedGames.size} game(s)?`)) {
-                      selectedGames.forEach(gameId => deleteGame(gameId));
-                    }
-                  }}
-                >
-                  Delete Selected
-                </button>
-                <button 
-                  className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
-                  onClick={() => setSelectedGames(new Set())}
-                >
-                  Clear Selection
-                </button>
-              </div>
+              )}
+              {activeTab === 'tournaments' && (
+                <div>
+                  {/* Tournaments List */}
+                  <div className="tournaments-list mb-6">
+                    <h3 className="text-xl font-bold mb-6 text-gray-900">Game Sessions</h3>
+                    {tournamentsList && tournamentsList.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {tournamentsList.map((tournament, index) => {
+                          const tournamentId = tournament.id || tournament._id || `tournament-${index}`;
+                          const gamesCount = tournament.games?.length || 0;
+                          const playersCount = tournament.participants?.length || 0;
+                          
+                          return (
+                            <div key={tournamentId} className="group relative bg-gradient-to-br from-green-50 to-green-100/50 rounded-2xl shadow-sm border border-green-200/60 hover:shadow-xl hover:border-green-300 transition-all duration-300 hover:-translate-y-1">
+                              <div className="p-4">
+                                <div className="mb-3">
+                                  <h4 className="font-bold text-gray-900 text-lg leading-tight mb-2">{tournament.name || `Game Session ${index + 1}`}</h4>
+                                  <div className="inline-flex items-center gap-2 mb-3">
+                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Code:</span>
+                                    <span className="font-mono text-sm font-semibold text-gray-800 bg-white/60 px-2 py-1 rounded-xl border border-gray-200/50">
+                                      {tournament.code || `SESS${tournamentId.slice(-6).toUpperCase()}`}
+                                    </span>
+                                  </div>
+                                  
+                                  {/* Games, Teams, and Players Display - Responsive layout */}
+                                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                                    <div className="flex items-center gap-1 bg-white/80 px-2 py-1.5 rounded-lg border border-green-200/50 flex-shrink-0">
+                                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                      </svg>
+                                      <span className="font-bold text-green-700 text-sm">{gamesCount}</span>
+                                      <span className="text-xs text-gray-600">Games</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1 bg-white/80 px-2 py-1.5 rounded-lg border border-green-200/50 flex-shrink-0">
+                                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                      </svg>
+                                      <span className="font-bold text-green-700 text-sm">{tournament.teams?.length || 0}</span>
+                                      <span className="text-xs text-gray-600">Teams</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1 bg-white/80 px-2 py-1.5 rounded-lg border border-green-200/50 flex-shrink-0">
+                                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                      </svg>
+                                      <span className="font-bold text-green-700 text-sm">{playersCount}</span>
+                                      <span className="text-xs text-gray-600">Players</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Additional tournament info */}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      {/* Empty space to maintain layout */}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1">
+                                      {/* Participant avatars */}
+                                      {(tournament.participants || []).slice(0, 3).map((participant, idx) => (
+                                        <div 
+                                          key={idx}
+                                          className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-xs font-bold shadow-sm border-2 border-white"
+                                          style={{ marginLeft: idx > 0 ? '-8px' : '0' }}
+                                        >
+                                          {participant.name?.charAt(0) || participant.charAt(0) || '?'}
+                                        </div>
+                                      ))}
+                                      {(tournament.participants?.length || 0) > 3 && (
+                                        <div className="w-7 h-7 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-bold shadow-sm border-2 border-white ml-1">
+                                          +{(tournament.participants?.length || 0) - 3}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-2">
+                                    <span className={`inline-flex items-center px-2 rounded-full text-xs font-medium ${
+                                      tournament.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {tournament.status || 'Active'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Link to={`/tournament-scoring/${tournament._id}`} className="flex-1">
+                                    <button className="w-full px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 shadow-sm hover:shadow-md focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                                      View Game Session
+                                    </button>
+                                  </Link>
+                                  <button className="p-2 text-gray-600 hover:text-gray-800 hover:bg-white/60 rounded-xl transition-all duration-200 group-hover:opacity-100 opacity-70">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                  <button className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 group-hover:opacity-100 opacity-70">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center">
+                          <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                          </svg>
+                        </div>
+                        <h4 className="text-xl font-bold text-gray-900 mb-2">No game sessions yet</h4>
+                        <p className="text-gray-600 mb-6 max-w-md mx-auto">Create your first game session to start organizing competitive gaming events!</p>
+                        <button 
+                          onClick={() => setIsModalOpen(true)}
+                          className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:from-green-700 hover:to-green-800 font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                        >
+                          Create Your First Game Session
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tournament Modal */}
+                  <TournamentModal 
+                    isOpen={isModalOpen}
+                    onClose={closeModal}
+                    onCreateTournament={createTournamentFromModal}
+                    isSubmitting={isSubmitting}
+                    gamesList={games}
+                  />
+                </div>
+              )}
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Game Modal */}
-      <GameModal 
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        onCreateGame={createGameFromModal}
-        gameManagerRef={gameManagerRef}
-      />
-    </div>
-  )}
-
-  {activeTab === 'tournaments' && (
-    <div>
-      {/* Tournaments List */}
-      <div className="tournaments-list mb-4">
-        <h3 className="text-lg font-semibold mb-3">Created Tournaments</h3>
-        {tournamentsList && tournamentsList.length > 0 ? (
-          <div className="space-y-2">
-            {tournamentsList.map((tournament, index) => {
-              const tournamentId = tournament.id || tournament._id || `tournament-${index}`;
-              
-              return (
-                <div key={tournamentId} className="p-3 border rounded-lg bg-gray-50">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium">{tournament.name || `Tournament ${index + 1}`}</h4>
-                      <p className="text-sm text-gray-600">
-                        Games: {tournament.games?.length || 0} | 
-                        Participants: {tournament.participants?.length || 0} |
-                        Status: {tournament.status || 'Active'}
-                      </p>
-                      {tournament.description && (
-                        <p className="text-sm text-gray-500 mt-1">{tournament.description}</p>
-                      )}
-                      {tournament.startDate && (
-                        <p className="text-sm text-gray-500">
-                          Start Date: {new Date(tournament.startDate).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600">
-                        View
-                      </button>
-                      <button className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">
-                        Edit
-                      </button>
-                      <button className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>No tournaments created yet</p>
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="mt-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-            >
-              Create Your First Tournament
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Tournament Modal */}
-      <TournamentModal 
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        onCreateTournament={createTournamentFromModal}
-        isSubmitting={isSubmitting}
-        gamesList={games}
-      />
-    </div>
-  )}
-</div>
          
           </div>
 

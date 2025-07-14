@@ -36,7 +36,7 @@ function App() {
             <Route path="/game/:gameId" element={<SingleGame />} />
             <Route path="/game-setup" element={<GameTemplateWizard />} />
             <Route path="/tournament-leaderboard" element={<TournamentLeaderboard />} />
-            <Route path="/tournament-scoring" element={<TournamentScoring />} />
+            <Route path="/tournament-scoring/:tournamentId" element={<TournamentScoring />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

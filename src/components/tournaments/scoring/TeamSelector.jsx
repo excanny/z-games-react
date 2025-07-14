@@ -11,7 +11,7 @@ const TeamSelector = ({ teams, selectedTeam, onTeamChange }) => (
     >
       <option value="">Choose a team...</option>
       {teams.map(team => (
-        <option key={team.id} value={team.id}>
+        <option key={team._id} value={team._id}>
           {team.name}
         </option>
       ))}

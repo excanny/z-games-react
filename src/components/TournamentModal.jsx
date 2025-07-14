@@ -5,7 +5,7 @@ const TournamentModal = ({
   isOpen, 
   onClose, 
   onCreateTournament, 
-  gamesList = [] // Add games list as prop
+  gamesList = [] 
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [tournament, setTournament] = useState({ 
@@ -26,15 +26,28 @@ const TournamentModal = ({
   ];
 
   const avatars = [
-    { emoji: '🦁', name: 'Lion' },
-    { emoji: '🐯', name: 'Tiger' },
-    { emoji: '🐻', name: 'Bear' },
-    { emoji: '🐵', name: 'Monkey' },
-    { emoji: '🐸', name: 'Frog' },
-    { emoji: '🐶', name: 'Dog' },
-    { emoji: '🐱', name: 'Cat' },
-    { emoji: '🦊', name: 'Fox' },
-  ];
+  { emoji: '🦁', name: 'Lion' },
+  { emoji: '🐯', name: 'Tiger' },
+  { emoji: '🦅', name: 'Eagle' },
+  { emoji: '🐱', name: 'Cat' },
+  { emoji: '🦈', name: 'Shark' },
+  { emoji: '🐶', name: 'Dog' },
+  { emoji: '🐋', name: 'Whale' },
+  { emoji: '🐴', name: 'Horse' },
+  { emoji: '🦬', name: 'Bison' },
+  { emoji: '🦌', name: 'Moose' },
+  { emoji: '🪿', name: 'Goose' },
+  { emoji: '🐢', name: 'Turtle' },
+  { emoji: '🦫', name: 'Beaver' },
+  { emoji: '🐻', name: 'Bear' },
+  { emoji: '🐸', name: 'Frog' },
+  { emoji: '🐰', name: 'Rabbit' },
+  { emoji: '🐺', name: 'Wolf' },
+  { emoji: '🧑', name: 'Human' },
+  { emoji: '🐵', name: 'Monkey' },
+  { emoji: '🦎', name: 'Chameleon' }
+];
+
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -67,7 +80,7 @@ const TournamentModal = ({
     
     if (currentStep === 0) {
       if (!tournament.name.trim()) {
-        setErrors({ tournamentName: 'Tournament name is required' });
+        setErrors({ tournamentName: 'Game session name is required' });
         return false;
       }
       return true;
@@ -95,7 +108,7 @@ const TournamentModal = ({
 
     if (currentStep === 2) {
       if (tournament.selectedGames.length === 0) {
-        setErrors({ games: 'Please select at least one game for the tournament.' });
+        setErrors({ games: 'Please select at least one game for the game session.' });
         return false;
       }
       return true;
@@ -218,9 +231,9 @@ const TournamentModal = ({
       onClose();
       
     } catch (error) {
-      console.error('Error creating tournament:', error);
+      console.error('Error creating game session:', error);
       setErrors({ 
-        submit: error.message || 'Failed to create tournament. Please check your connection and try again.' 
+        submit: error.message || 'Failed to create game session. Please check your connection and try again.' 
       });
     } finally {
       setIsLoading(false);
@@ -232,15 +245,15 @@ const TournamentModal = ({
       case 0:
         return (
           <div className="space-y-6 max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Tournament Details</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Game Session Details</h2>
             
             <div className="grid grid-cols-1 gap-6">
               <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-700">Tournament Name *</label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Game Session Name *</label>
                 <input
                   className="w-full border border-gray-300 rounded-md px-4 py-3 text-lg placeholder-gray-400
                              focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
-                  placeholder="Enter tournament name"
+                  placeholder="Enter game session name"
                   value={tournament.name}
                   onChange={(e) => setTournament({ ...tournament, name: e.target.value })}
                 />
@@ -254,7 +267,7 @@ const TournamentModal = ({
                 <textarea
                   className="w-full border border-gray-300 rounded-md px-4 py-3 text-lg placeholder-gray-400 resize-none
                              focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
-                  placeholder="Describe your tournament"
+                  placeholder="Describe your game session"
                   rows={3}
                   value={tournament.description}
                   onChange={(e) => setTournament({ ...tournament, description: e.target.value })}
@@ -415,9 +428,9 @@ const TournamentModal = ({
             <div className="text-center">
               <button
                 onClick={addTeam}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold text-lg transition"
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 my-3 rounded-lg font-semibold text-lg transition"
               >
-                + Add Team
+                + Add New Team
               </button>
             </div>
 
@@ -434,7 +447,7 @@ const TournamentModal = ({
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Select Games</h2>
-              <p className="text-gray-600">Choose the games that will be played in this tournament</p>
+              <p className="text-gray-600">Choose the games that will be played in this game session</p>
               <div className="flex justify-center gap-6 text-sm text-gray-600 mt-2">
                 <span className="bg-blue-100 px-3 py-1 rounded-full">
                   <strong>{tournament.selectedGames.length}</strong> {tournament.selectedGames.length === 1 ? 'Game' : 'Games'} Selected
@@ -520,7 +533,7 @@ const TournamentModal = ({
             <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Review & Finish</h2>
 
             <section className="bg-purple-50 rounded-lg p-6 shadow-inner border border-purple-200">
-              <h3 className="text-xl font-semibold mb-4 text-purple-900">Tournament Info</h3>
+              <h3 className="text-xl font-semibold mb-4 text-purple-900">Game Session Info</h3>
               <div className="space-y-2">
                 <p className="text-lg"><strong>Name:</strong> {tournament.name}</p>
                 
@@ -538,24 +551,6 @@ const TournamentModal = ({
                 )}
               </div>
             </section>
-
-            {/* <section className="bg-blue-50 rounded-lg p-6 shadow-inner border border-blue-200">
-              <h3 className="text-xl font-semibold mb-4 text-blue-900">Selected Games</h3>
-              {tournament.selectedGames.length === 0 ? (
-                <p className="text-blue-700 italic">No games selected</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {tournament.selectedGames.map((game) => (
-                    <div key={game._id || game.id} className="bg-white rounded-lg p-3 border border-blue-200">
-                      <h4 className="font-semibold text-blue-800">{game.name}</h4>
-                      {game.description && (
-                        <p className="text-sm text-blue-600 mt-1">{game.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section> */}
 
             <section className="bg-blue-50 rounded-lg p-6 shadow-inner border border-blue-200">
               <h3 className="text-xl font-semibold mb-4 text-blue-900">Selected Games</h3>
@@ -602,14 +597,14 @@ const TournamentModal = ({
 
             {errors.submit && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800 font-semibold">Error creating tournament:</p>
+                <p className="text-red-800 font-semibold">Error creating game session:</p>
                 <p className="text-red-700">{errors.submit}</p>
               </div>
             )}
 
             <section className="bg-yellow-50 rounded-lg p-6 text-center border border-yellow-200">
               <h3 className="text-2xl font-bold text-yellow-800 mb-2">🎉 You're All Set!</h3>
-              <p className="text-yellow-700 text-lg">Your tournament is ready to begin!</p>
+              <p className="text-yellow-700 text-lg">Your game session is ready to begin!</p>
             </section>
           </div>
         );
@@ -628,7 +623,7 @@ const TournamentModal = ({
         <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white p-4">
           <div className="flex justify-between items-center mb-3">
             <div>
-              <h2 className="text-xl font-bold">Create New Tournament</h2>
+              <h2 className="text-xl font-bold">Create New Game Session</h2>
               <p className="text-purple-200 mt-1 text-sm">Step {currentStep + 1} of {steps.length}</p>
             </div>
             <button 
@@ -729,7 +724,7 @@ const TournamentModal = ({
                     Creating...
                   </>
                 ) : (
-                  'Create Tournament'
+                  'Create Game Session'
                 )}
               </button>
             )}

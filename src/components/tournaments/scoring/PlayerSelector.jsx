@@ -11,8 +11,8 @@ const PlayerSelector = ({ players, selectedPlayer, onPlayerChange }) => (
     >
       <option value="">Choose a player...</option>
       {players.map(player => (
-        <option key={player.id} value={player.id}>
-          {player.name} ({player.teamName})
+        <option key={player.playerId} value={player.playerId}>
+          {player.playerName} ({player.teamName})
         </option>
       ))}
     </select>
