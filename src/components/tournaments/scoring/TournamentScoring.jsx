@@ -18,16 +18,14 @@ import PlayerManagement from './PlayerManagement';
 import { useParams } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import ZGamesLogo from '../../../assets/Z Games logo with illustration.png';
+import axiosClient from "../../../utils/axiosClient"; 
 
 const TournamentScoring = () => {
   const { tournamentId } = useParams();
   const [tournamentData, setTournamentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [scores, setScores] = useState([]);
   const [games, setGames] = useState([]);
-  const [teams, setTeams] = useState([]);
-
   const [activeTab, setActiveTab] = useState('scoring');
   const [selectedGame, setSelectedGame] = useState('');
   const [scoringMode, setScoringMode] = useState('team');
@@ -99,7 +97,7 @@ const TournamentScoring = () => {
     setTournamentData(prevData => ({
       ...prevData,
       teams: prevData.teams.map(team => 
-        team._id === teamId ? { ...team, ...updatedTeam } : team
+        team.id === teamId ? { ...team, ...updatedTeam } : team
       )
     }));
   };
@@ -107,7 +105,7 @@ const TournamentScoring = () => {
   const handleRemoveTeam = (teamId) => {
     setTournamentData(prevData => ({
       ...prevData,
-      teams: prevData.teams.filter(team => team._id !== teamId)
+      teams: prevData.teams.filter(team => team.id !== teamId)
     }));
   };
 
@@ -116,7 +114,7 @@ const TournamentScoring = () => {
     setTournamentData(prevData => ({
       ...prevData,
       teams: prevData.teams.map(team => 
-        team._id === teamId 
+        team.id === teamId 
           ? {
               ...team,
               players: [...team.players, newPlayer]
@@ -131,10 +129,10 @@ const TournamentScoring = () => {
     setTournamentData(prevData => ({
       ...prevData,
       teams: prevData.teams.map(team => 
-        team._id === teamId 
+        team.id === teamId 
           ? {
               ...team,
-              players: team.players.filter(player => player._id !== playerId)
+              players: team.players.filter(player => player.id !== playerId)
             }
           : team
       )
@@ -146,11 +144,11 @@ const TournamentScoring = () => {
     setTournamentData(prevData => ({
       ...prevData,
       teams: prevData.teams.map(team => 
-        team._id === teamId 
+        team.id === teamId 
           ? {
               ...team,
               players: team.players.map(player => 
-                player._id === playerId 
+                player.id === playerId 
                   ? { ...player, ...updatedPlayerData }
                   : player
               )
@@ -173,7 +171,6 @@ const TournamentScoring = () => {
       const result = await response.json();
 
       if (result.success) {
-        console.log("tournamentData", result.data);
         setTournamentData(result.data);
         setError(null);
       } else {
@@ -200,7 +197,7 @@ const TournamentScoring = () => {
       try {
         // selectedGames already contains full game data
         const gameDetails = tournamentData.selectedGames.map((game) => ({
-          _id: game._id,
+          game_id: game.game_id,
           name: game.name,
           description: game.description || '',
         }));
@@ -218,103 +215,124 @@ const TournamentScoring = () => {
     if (!tournamentData?.teams) return [];
     return tournamentData.teams.flatMap(team =>
       team.players.map(player => ({
-        playerId: player._id,
+        playerId: player.id,
         playerName: player.name,
-        teamId: team._id,
+        teamId: team.id,
         teamName: team.name
       }))
     );
   };
 
-  const handleScoreSubmit = async () => {
-    if (!selectedGame || scoreValue === '' || scoreValue === null) {
-      alert('Please select a game and enter a score');
-      return;
-    }
+const handleScoreSubmit = async () => {
 
-    if (scoringMode === 'team' && !selectedTeam) {
-      alert('Please select a team');
-      return;
-    }
+  if (!selectedGame || scoreValue === '' || scoreValue === null) {
+    alert('Please select a game and enter a score');
+    return;
+  }
 
-    if (scoringMode === 'player' && !selectedPlayer) {
-      alert('Please select a player');
-      return;
-    }
+  if (scoringMode === 'team' && !selectedTeam) {
+    alert('Please select a team');
+    return;
+  }
 
-    const game = games.find(g => g._id === selectedGame);
-    if (!game) return;
+  if (scoringMode === 'player' && !selectedPlayer) {
+    alert('Please select a player');
+    return;
+  }
 
-    const gameId = selectedGame;
-    const url = `http://localhost:5000/api/leaderboardScoring/${tournamentId}/games/${gameId}/scores`;
+  const game = games.find(g => g.game_id === selectedGame);
+  if (!game) return;
 
-    let finalPayload;
-    if (scoringMode === 'team') {
-      finalPayload = {
-        scoreType: 'team',
-        teamScores: [
-          {
-            teamId: selectedTeam,
-            totalScore: parseInt(scoreValue)
-          }
-        ]
-      };
-    } else {
-      // Get the team ID for the selected player
-      const playerData = getAllPlayers().find(p => p.playerId === selectedPlayer);
-      
-      finalPayload = {
-        scoreType: 'player',
-        playerScores: [
-          {
-            playerId: selectedPlayer,
-            teamId: playerData?.teamId,
-            score: parseInt(scoreValue)
-          }
-        ]
-      };
-    }
+  const gameId = selectedGame;
+  const url = `/leaderboardScoring/${tournamentId}/games/${gameId}/scores`; // No need for localhost with axiosClient
 
-    console.log('Submitting final payload:', finalPayload);
+  const actionType = parseInt(scoreValue) >= 0 ? 'awarded' : 'deducted';
 
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(finalPayload)
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        // Determine action type before clearing scoreValue
-        const actionType = parseInt(scoreValue) >= 0 ? 'awarded' : 'deducted';
-        
-        // Clear form inputs
-        setScoreValue('');
-        setSelectedTeam('');
-        setSelectedPlayer('');
-
-        // Show success notification
-        if (actionType === 'awarded') {
-          scoreAddedNotification();
-        } else {
-          scoreDeductedNotification();
+  let finalPayload;
+  if (scoringMode === 'team') {
+    finalPayload = {
+      scoreType: 'team',
+      teamScores: [
+        {
+          team_id: selectedTeam,
+          score: parseInt(scoreValue),
+          reason: `Score ${actionType} for game ${game.name}`
         }
+      ]
+    };
+  } else {
+    const playerData = getAllPlayers().find(p => p.playerId === selectedPlayer);
+    
+    finalPayload = {
+      scoreType: 'player',
+      playerScores: [
+        {
+          player_id: selectedPlayer,
+          team_id: playerData?.teamId,
+          score: parseInt(scoreValue)
+        }
+      ]
+    };
+  }
 
-        // Refresh tournament data to get updated scores
-        await fetchTournamentData();
+  try {
+    const response = await axiosClient.post(url, finalPayload);
+
+    const result = response.data;
+
+    if (response.status === 200 && result.success) {
+      setScoreValue('');
+      setSelectedTeam('');
+      setSelectedPlayer('');
+
+      if (actionType === 'awarded') {
+        scoreAddedNotification();
       } else {
-        console.error('Error submitting score:', result);
-        alert(`Error: ${result.message || 'Failed to submit score'}`);
+        scoreDeductedNotification();
       }
-    } catch (error) {
-      console.error('Request failed:', error);
-      alert('Failed to connect to server. Please try again.');
+
+      if (scoringMode === 'team') {
+        setTournamentData(prevData => ({
+          ...prevData,
+          teams: prevData.teams.map(team => 
+            team.id === selectedTeam 
+              ? { ...team, totalScore: (team.totalScore || 0) + parseInt(scoreValue) }
+              : team
+          )
+        }));
+      } else {
+        const playerData = getAllPlayers().find(p => p.playerId === selectedPlayer);
+        if (playerData) {
+          setTournamentData(prevData => ({
+            ...prevData,
+            teams: prevData.teams.map(team => 
+              team.id === playerData.teamId 
+                ? { 
+                    ...team, 
+                    totalScore: (team.totalScore || 0) + parseInt(scoreValue),
+                    players: team.players.map(player => 
+                      player.id === selectedPlayer 
+                        ? { ...player, score: (player.score || 0) + parseInt(scoreValue) }
+                        : player
+                    )
+                  }
+                : team
+            )
+          }));
+        }
+      }
+
+      setTimeout(fetchTournamentData, 3000);
+
+    } else {
+      console.error('Error submitting score:', result);
+      alert(`Error: ${result.message || 'Failed to submit score'}`);
     }
-  };
+  } catch (error) {
+    console.error('Request failed:', error);
+    alert('Failed to connect to server. Please try again.');
+  }
+};
 
   const getTeamTotalScore = (teamId) => {
     if (!tournamentData?.scores) return 0;
@@ -327,12 +345,13 @@ const TournamentScoring = () => {
     if (!tournamentData?.teams) return [];
     const teamScores = tournamentData.teams.map(team => ({
       ...team,
-      totalScore: getTeamTotalScore(team._id), // Use _id instead of id
+      totalScore: getTeamTotalScore(team.id), // Use _id instead of id
     }));
     return teamScores.sort((a, b) => b.totalScore - a.totalScore);
   };
 
   const handleGameChange = (gameId) => {
+
     setSelectedGame(gameId);
     setSelectedTeam('');
     setSelectedPlayer('');
@@ -379,7 +398,7 @@ const TournamentScoring = () => {
     );
   }
 
-  const selectedGameData = games.find(g => g._id === selectedGame);
+  const selectedGameData = games.find(g => g.id === selectedGame);
   const leaderboard = getLeaderboard();
 
   return (
@@ -389,7 +408,7 @@ const TournamentScoring = () => {
           <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 mb-4 sm:mb-6">
             <div className="flex items-center justify-between">
               {/* Z-Games Logo - Left Side */}
-              <Link to="/">
+              <Link to="/admin-dashboard">
                 <div className="flex items-center">
                   <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-2 sm:p-3 mr-4 sm:mr-6 shadow-md">
                     <img 
@@ -587,12 +606,12 @@ const TournamentScoring = () => {
       {/* Teams Leaderboard */}
       <div className="space-y-6">
         <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-2xl p-6 border border-green-200/60 space-y-6">
-          <div className="space-y-3 sm:space-y-4 max-h-96 sm:max-h-[32rem] lg:max-h-[36rem] overflow-y-auto">
+          <div className="space-y-3 sm:space-y-4 max-h-96 sm:max-h-[50rem] lg:max-h-[54rem] overflow-y-auto">
             {tournamentData?.teams
               ?.sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0))
               .map((team, index) => (
                 <div
-                  key={team._id}
+                  key={team.id}
                   className="bg-white/80 rounded-xl p-4 border border-green-200/50 hover:shadow-md transition-all duration-200"
                 >
                   <TeamCard

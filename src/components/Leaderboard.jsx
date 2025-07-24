@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import axiosClient from "../utils/axiosClient"; 
+import axiosClient from '../utils/axiosClient';
+
 
 const Leaderboard = () => {
   const [selectedGame, setSelectedGame] = useState('');
   const [games, setGames] = useState([]);
-  const [leaderboardData, setLeaderboardData] = useState([]);
-  const [longestStreak, setLongestStreak] = useState(null);
+  const [leaderboardData, setLeaderboardData] = useState({
+    combined: [],
+    teams: [],
+    players: []
+  });
+  const [tournamentData, setTournamentData] = useState(null);
+  const [topPerformer, setTopPerformer] = useState(null);
+  const [viewMode, setViewMode] = useState('combined'); // 'combined', 'teams', 'players'
 
   useEffect(() => {
     fetchGames();
   }, []);
 
-  // Fetch leaderboard data when selected game changes
   useEffect(() => {
     if (selectedGame) {
       getLeaderboardData(selectedGame);
@@ -21,38 +27,164 @@ const Leaderboard = () => {
   const fetchGames = async () => {
     try {
       const response = await axiosClient.get('/games');
-      setGames(response.data.data);
+      setGames(response.data.data || []);
       
-      // Set the active game as selected by default
       if (response.data.data && response.data.data.length > 0) {
         const activeGame = response.data.data.find(game => game.isActive);
         if (activeGame) {
-          setSelectedGame(activeGame._id);
+          setSelectedGame(activeGame.id);
         }
       }
     } catch (err) {
       console.error('Error fetching games:', err);
+      setGames([]);
     }
   };
 
   const getLeaderboardData = async (gameId) => {
     try {
       const response = await axiosClient.get(`/games/${gameId}/leaderboard`);
-      // Update to handle the new response structure
-      setLeaderboardData(response.data.data.leaderboard);
-      setLongestStreak(response.data.data.longestStreak);
+      
+      if (response.data?.data?.teams) {
+        const data = response.data.data;
+        setTournamentData(data);
+        processLeaderboardData(data);
+        findTopPerformer(data);
+      } else {
+        resetLeaderboard();
+      }
     } catch (err) {
       console.error('Error fetching leaderboard:', err);
+      resetLeaderboard();
     }
   };
 
-  // Handle game selection change
+  const resetLeaderboard = () => {
+    setLeaderboardData({
+      combined: [],
+      teams: [],
+      players: []
+    });
+    setTournamentData(null);
+    setTopPerformer(null);
+  };
+
+  const processLeaderboardData = (data) => {
+    const combined = [];
+    const teams = [];
+    const players = [];
+
+    // Process teams
+    if (data.teams) {
+      data.teams.forEach(team => {
+        const teamEntry = {
+          id: team.id,
+          name: team.name,
+          score: team.totalScore || 0,
+          positiveScore: team.positiveScore || 0,
+          deductions: team.totalDeductions || 0,
+          rank: team.rank,
+          type: 'team',
+          avatar: '🏆',
+          playerCount: team.players?.length || 0
+        };
+        
+        teams.push(teamEntry);
+        combined.push(teamEntry);
+
+        // Process players within teams
+        if (team.players) {
+          team.players.forEach(player => {
+            const playerEntry = {
+              id: player.id,
+              name: player.name,
+              score: player.totalScore || 0,
+              rank: player.overallRank || 0,
+              teamRank: player.teamRank || 0,
+              type: 'player',
+              avatar: getAnimalEmoji(player.animal?.name),
+              teamName: team.name,
+              teamId: team.id
+            };
+            
+            players.push(playerEntry);
+            combined.push(playerEntry);
+          });
+        }
+      });
+    }
+
+    // Sort each array by score (descending)
+    const sortByScore = (a, b) => b.score - a.score;
+    combined.sort(sortByScore);
+    teams.sort(sortByScore);
+    players.sort(sortByScore);
+
+    // Assign proper ranks for combined view
+    combined.forEach((entry, index) => {
+      entry.combinedRank = index + 1;
+    });
+
+    setLeaderboardData({
+      combined,
+      teams,
+      players
+    });
+  };
+
+  const findTopPerformer = (data) => {
+    let topPlayer = null;
+    let highestScore = -1;
+
+    if (data.teams) {
+      data.teams.forEach(team => {
+        if (team.players) {
+          team.players.forEach(player => {
+            if (player.totalScore > highestScore) {
+              highestScore = player.totalScore;
+              topPlayer = {
+                name: player.name,
+                score: player.totalScore,
+                teamName: team.name,
+                avatar: getAnimalEmoji(player.animal?.name)
+              };
+            }
+          });
+        }
+      });
+    }
+
+    setTopPerformer(topPlayer);
+  };
+
+  const getAnimalEmoji = (animalName) => {
+    const animalEmojis = {
+      'Cat': '🐱',
+      'Tiger': '🐅',
+      'Dog': '🐶',
+      'Lion': '🦁',
+      'Bear': '🐻',
+      'Wolf': '🐺',
+      'Fox': '🦊',
+      'Rabbit': '🐰',
+      'Mouse': '🐭',
+      'Elephant': '🐘'
+    };
+    return animalEmojis[animalName] || '🎮';
+  };
+
   const handleGameChange = (e) => {
     setSelectedGame(e.target.value);
   };
 
-  // Find the current selected game
-  const currentGame = games.find(game => game._id === selectedGame);
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode);
+  };
+
+  const getCurrentLeaderboard = () => {
+    if (!leaderboardData || !leaderboardData[viewMode]) return [];
+    return leaderboardData[viewMode];
+  };
 
   const getRankClass = (rank) => {
     switch (rank) {
@@ -67,218 +199,252 @@ const Leaderboard = () => {
     }
   };
 
+  const getHighestScore = () => {
+    const current = getCurrentLeaderboard();
+    if (!current || current.length === 0) return 0;
+    return Math.max(...current.map(p => p.score)).toLocaleString();
+  };
+
+  const currentGame = games.find(game => game.id === selectedGame);
+  const currentLeaderboard = getCurrentLeaderboard();
+
   return (
-    <>
-      <link
-        href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.2/css/bootstrap.min.css"
-        rel="stylesheet"
-      />
-      <style>
-        {`
-          body { background-color: #f8f9fa; }
-          .rank-item { 
-            transition: transform 0.2s; 
-            border-left: 4px solid transparent;
-          }
-          .rank-item:hover { 
-            transform: scale(1.02); 
-          }
-          .rank-1 { border-left-color: #ffc107; }
-          .rank-2 { border-left-color: #6c757d; }
-          .rank-3 { border-left-color: #cd7f32; }
-          .custom-select { 
-            background-image: none;
-            padding-right: 2rem;
-          }
-          .select-wrapper { position: relative; }
-          .select-arrow { 
-            position: absolute; 
-            right: 1rem; 
-            top: 50%; 
-            transform: translateY(-50%);
-            pointer-events: none;
-          }
-          .gradient-header {
-            background: linear-gradient(135deg, #007bff, #6f42c1);
-          }
-          .game-header {
-            background: linear-gradient(135deg, #e9ecef, #f8f9fa);
-          }
-          .streak-highlight {
-            background: linear-gradient(45deg, #ff6b6b, #feca57);
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 1rem;
-            font-size: 0.75rem;
-            font-weight: bold;
-          }
-        `}
-      </style>
-      
-      <div className="container-fluid" style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-        <div className="row justify-content-center">
-          <div className="col-12">
-            
-            {/* Header */}
-            <div className="text-center py-5">
-              <h1 className="display-4 font-weight-bold text-dark mb-3">
-                🏆 Game Leaderboard
-              </h1>
-              <p className="lead text-muted">Compete with players worldwide and climb to the top!</p>
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center py-8">
+          <h1 className="text-4xl font-bold text-gray-800 mb-3">
+            🏆 Tournament Leaderboard
+          </h1>
+          <p className="text-lg text-gray-600">Compete with players worldwide and climb to the top!</p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 mb-6">
+          {/* Game Selector */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">Select Game</label>
+            <select
+              value={selectedGame}
+              onChange={handleGameChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Choose a game...</option>
+              {games.map((game) => (
+                <option key={game.id} value={game.id}>
+                  {game.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Current Game Header */}
+          <div className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg shadow-sm p-6 text-center">
+            <span className="text-4xl mr-3">{currentGame?.icon || '🎮'}</span>
+            <h2 className="text-2xl font-bold text-gray-800 inline-block">
+              {currentGame?.name || 'Select a Game'}
+            </h2>
+          </div>
+        </div>
+
+        {/* Tournament Summary */}
+        {tournamentData && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="md:col-span-2">
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  🎯 {tournamentData.name}
+                </h3>
+                <p className="text-gray-600 mb-2">{tournamentData.description}</p>
+                <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                  tournamentData.status === 'active' 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {tournamentData.status}
+                </span>
+              </div>
+              <div className="text-right">
+                <div className="space-y-2 text-gray-600">
+                  <div><span className="font-semibold">{tournamentData.summary?.totalTeams || 0}</span> Teams</div>
+                  <div><span className="font-semibold">{tournamentData.summary?.totalPlayers || 0}</span> Players</div>
+                  <div><span className="font-semibold">{tournamentData.summary?.totalGames || 0}</span> Games</div>
+                </div>
+              </div>
             </div>
-            <div className="row">
-                <div className="col-md-6">
-                    {/* Game Selector */}
-                    <div className="card shadow-sm mb-4">
-                    <div className="card-body">
-                        <label className="font-weight-bold text-secondary mb-2">Select Game</label>
-                        <div className="select-wrapper">
-                        <select
-                            value={selectedGame}
-                            onChange={handleGameChange}
-                            className="form-control form-control-lg custom-select"
-                        >
-                            {games.map((game) => (
-                            <option key={game._id} value={game._id}>
-                                 {game.name}
-                            </option>
-                            ))}
-                        </select>
+          </div>
+        )}
+
+        {/* Top Performer */}
+        {topPerformer && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800 mb-1">
+                  🔥 Top Individual Performer
+                </h3>
+                <p className="text-gray-600">
+                  <span className="text-2xl mr-2">{topPerformer.avatar}</span>
+                  <strong>{topPerformer.name}</strong> from <em>{topPerformer.teamName}</em>
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="bg-gradient-to-r from-red-400 to-yellow-400 text-white px-4 py-2 rounded-full font-bold">
+                  {topPerformer.score.toLocaleString()} points
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Mode Selector */}
+        {leaderboardData?.combined && leaderboardData.combined.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleViewModeChange('combined')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  viewMode === 'combined'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Combined View
+              </button>
+              <button
+                onClick={() => handleViewModeChange('teams')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  viewMode === 'teams'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Teams Only
+              </button>
+              <button
+                onClick={() => handleViewModeChange('players')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  viewMode === 'players'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Players Only
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Leaderboard */}
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4">
+            <h3 className="text-xl font-bold text-center">
+              {viewMode === 'combined' && 'Overall Standings'}
+              {viewMode === 'teams' && 'Team Rankings'}
+              {viewMode === 'players' && 'Player Rankings'}
+            </h3>
+          </div>
+
+          <div className="divide-y divide-gray-200">
+            {!currentLeaderboard || currentLeaderboard.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No leaderboard data available. Please select a game.</p>
+              </div>
+            ) : (
+              currentLeaderboard.map((entry, index) => {
+                const displayRank = viewMode === 'combined' ? entry.combinedRank : entry.rank || index + 1;
+                
+                return (
+                  <div
+                    key={`${entry.type}-${entry.id}`}
+                    className={`p-4 hover:bg-gray-50 transition-colors ${getRankClass(displayRank)}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="text-2xl font-bold text-gray-800">
+                          #{displayRank}
                         </div>
-                    </div>
-                    </div>
-                </div>
-                <div className="col-md-6">
-                    {/* Current Game Header */}
-                    <div className="card shadow-sm mb-4 game-header">
-                    <div className="card-body text-center py-4">
-                        <span className="display-4 mr-3">{currentGame?.icon || '🎮'}</span>
-                        <h2 className="h2 font-weight-bold text-dark d-inline-block mb-0">
-                        {currentGame?.name || 'Select a Game'}
-                        </h2>
-                    </div>
-                    </div>
-                </div>
-            </div>
-            
-            {/* Longest Streak Highlight */}
-            {longestStreak && (
-              <div className="card shadow-sm mb-4">
-                <div className="card-body">
-                  <div className="row align-items-center">
-                    <div className="col-md-8">
-                      <h5 className="font-weight-bold text-dark mb-1">
-                        🔥 Hottest Streak Champion
-                      </h5>
-                      <p className="text-muted mb-0">
-                        <strong>{longestStreak.playerName}</strong> is on fire with an incredible streak!
-                      </p>
-                    </div>
-                    <div className="col-md-4 text-right">
-                      <span className="streak-highlight">
-                        {longestStreak.longestStreak} consecutive scores!
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Leaderboard */}
-            <div className="card shadow">
-              <div className="gradient-header text-white">
-                <div className="card-header border-0">
-                  <h3 className="h4 font-weight-bold text-center mb-0">Overall Standings</h3>
-                </div>
-              </div>
-              
-              <div className="card-body p-0">
-                {leaderboardData.length === 0 ? (
-                  <div className="text-center py-5">
-                    <p className="text-muted">No leaderboard data available</p>
-                  </div>
-                ) : (
-                  leaderboardData.map((player) => (
-                    <div
-                      key={player.rank}
-                      className={`p-3 border-bottom rank-item rank-${player.rank} ${getRankClass(player.rank)}`}
-                    >
-                      <div className="d-flex align-items-center justify-content-between">
-                        <div className="d-flex align-items-center">
-                          <div className="mr-3">
-                            {/* Rank badges can be added here */}
-                          </div>
-                          <div className="d-flex align-items-center">
-                            <span className="h3 mr-3 mb-0">{player.avatar}</span>
-                            <div>
-                              <h5 className="font-weight-bold text-dark mb-1">
-                                {player.name}
-                                {longestStreak && player.name === longestStreak.playerName && (
-                                  <span className="ml-2 badge badge-warning">
-                                    🔥 Streak King
-                                  </span>
-                                )}
-                              </h5>
-                              <div className="d-flex align-items-center">
-                                <small className="text-muted">
-                                  Rank #{player.rank}
-                                </small>
-                              </div>
+                        <div className="flex items-center space-x-3">
+                          <span className="text-3xl">{entry.avatar}</span>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <h4 className="text-lg font-bold text-gray-800">
+                                {entry.name}
+                              </h4>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                entry.type === 'team'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-purple-100 text-purple-800'
+                              }`}>
+                                {entry.type.toUpperCase()}
+                              </span>
+                              {topPerformer && entry.name === topPerformer.name && entry.type === 'player' && (
+                                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
+                                  🔥 TOP SCORER
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {entry.teamName && entry.type === 'player' && (
+                                <span>Team: {entry.teamName}</span>
+                              )}
+                              {entry.type === 'team' && entry.playerCount && (
+                                <span>{entry.playerCount} players</span>
+                              )}
+                              {entry.deductions > 0 && (
+                                <span className="ml-2 text-red-600">
+                                  (-{entry.deductions} deductions)
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
-                        
-                        <div className="text-right">
-                          <div className="h4 font-weight-bold text-dark mb-0">
-                            {player.score.toLocaleString()}
-                          </div>
-                          <small className="text-muted">points</small>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-gray-800">
+                          {entry.score.toLocaleString()}
                         </div>
+                        <div className="text-sm text-gray-500">points</div>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Footer Stats */}
-            <div className="row mt-4 mb-5">
-              <div className="col-md-4 mb-3">
-                <div className="card shadow-sm text-center">
-                  <div className="card-body">
-                    <div className="h3 font-weight-bold text-primary">
-                      {leaderboardData.length}
-                    </div>
-                    <small className="text-muted">Active Players</small>
                   </div>
-                </div>
-              </div>
-              <div className="col-md-4 mb-3">
-                <div className="card shadow-sm text-center">
-                  <div className="card-body">
-                    <div className="h3 font-weight-bold text-success">
-                      {longestStreak ? longestStreak.longestStreak : 0}
-                    </div>
-                    <small className="text-muted">{longestStreak ? `${longestStreak.playerName}'s Best Streak` : 'Best Streak'}</small>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-4 mb-3">
-                <div className="card shadow-sm text-center">
-                  <div className="card-body">
-                    <div className="h3 font-weight-bold" style={{ color: '#6f42c1' }}>
-                      {leaderboardData.length > 0 ? Math.max(...leaderboardData.map(p => p.score)).toLocaleString() : 0}
-                    </div>
-                    <small className="text-muted">Highest Score</small>
-                  </div>
-                </div>
-              </div>
-            </div>
-
+                );
+              })
+            )}
           </div>
         </div>
+
+        {/* Footer Stats */}
+        {tournamentData && (
+          <div className="grid md:grid-cols-4 gap-4 mt-6">
+            <div className="bg-white rounded-lg shadow-sm p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {currentLeaderboard.length}
+              </div>
+              <div className="text-sm text-gray-600">Total Entries</div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {tournamentData.summary?.totalTeams || 0}
+              </div>
+              <div className="text-sm text-gray-600">Active Teams</div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm p-4 text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {getHighestScore()}
+              </div>
+              <div className="text-sm text-gray-600">Highest Score</div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm p-4 text-center">
+              <div className="text-2xl font-bold text-red-600">
+                {tournamentData.summary?.totalDeductions || 0}
+              </div>
+              <div className="text-sm text-gray-600">Total Deductions</div>
+            </div>
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 };
 

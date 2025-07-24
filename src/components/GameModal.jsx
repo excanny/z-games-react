@@ -36,7 +36,6 @@ const GameModal = ({ isOpen, onClose, onCreateGame, gameManagerRef }) => {
           participants: participants
         };
 
-        console.log('Submitting game data:', gameData);
         await onCreateGame(gameData);
         
         handleClose();

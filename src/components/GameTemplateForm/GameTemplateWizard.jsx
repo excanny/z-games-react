@@ -59,27 +59,17 @@ const TournamentWizard = () => {
   };
 
   const nextStep = () => {
-    console.log('=== NEXT STEP VALIDATION ===');
-    console.log('Current Step:', currentStep);
-    console.log('Tournament Data:', tournament);
-    console.log('Teams Data:', teams);
-    console.log('Players Data:', players);
-    console.log('Current Errors:', errors);
     
     if (validateStep()) {
       setErrors({});
       const newStep = currentStep + 1;
-      console.log('Validation passed, moving to step:', newStep);
       setCurrentStep(newStep);
     } else {
-      console.log('Validation failed, staying on current step');
+      //console.log('Validation failed, staying on current step');
     }
   };
 
   const prevStep = () => {
-    console.log('=== PREVIOUS STEP ===');
-    console.log('Current Step:', currentStep);
-    console.log('Moving to step:', currentStep - 1);
     setErrors({});
     setCurrentStep((prev) => prev - 1);
   };
@@ -90,11 +80,6 @@ const TournamentWizard = () => {
     const updatedTeams = [...teams, newTeam];
     const updatedPlayers = { ...players, [id]: [] };
     
-    console.log('=== ADD TEAM ===');
-    console.log('New Team ID:', id);
-    console.log('Updated Teams:', updatedTeams);
-    console.log('Updated Players Structure:', updatedPlayers);
-    
     setTeams(updatedTeams);
     setPlayers(updatedPlayers);
   };
@@ -104,13 +89,7 @@ const TournamentWizard = () => {
     const existingPlayers = players[teamId] || [];
     const hasPlayersWithoutAvatars = existingPlayers.some(p => !p.avatar || !p.name.trim());
     
-    console.log('=== ADD PLAYER ===');
-    console.log('Team ID:', teamId);
-    console.log('Existing Players:', existingPlayers);
-    console.log('Has incomplete players:', hasPlayersWithoutAvatars);
-    
     if (hasPlayersWithoutAvatars) {
-      console.log('Cannot add player - existing players incomplete');
       setErrors({ players: 'Please complete all existing players (name and avatar) before adding a new one.' });
       return;
     }
@@ -119,11 +98,7 @@ const TournamentWizard = () => {
     const newPlayer = { id: Date.now(), name: '', avatar: '' };
     const updated = { ...players };
     updated[teamId] = [...(updated[teamId] || []), newPlayer];
-    
-    console.log('New Player:', newPlayer);
-    console.log('Updated Players for team:', updated[teamId]);
-    console.log('Full Players Structure:', updated);
-    
+
     setPlayers(updated);
   };
 
@@ -374,9 +349,6 @@ const TournamentWizard = () => {
             }))
           }
         };
-
-        console.log('=== FINAL TOURNAMENT PAYLOAD ===');
-        console.log(JSON.stringify(finalPayload, null, 2));
 
         return (
           <div className="max-w-3xl mx-auto space-y-8">

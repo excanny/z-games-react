@@ -26,7 +26,6 @@ const SingleGame = () => {
   const getGameDetails = async (gameId) => {
     try {
       const response = await axiosClient.get(`/games/${gameId}`);
-      console.log('Game details:', response.data.data);
       setCurrentGame(response.data.data);
     } catch (err) {
       console.error('Error fetching game details:', err);

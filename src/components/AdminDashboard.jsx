@@ -107,9 +107,8 @@ const AdminDashboard = () => {
     const fetchGames = async () => {
       try {
         const response = await axiosClient.get('/games');
-        debugger
+        //debugger
         const gamesData = response.data.data || response.data || [];
-        console.log('Fetched games:', gamesData); // Debug log
         setGames(gamesData);
       } catch (error) {
         console.error('Error fetching games:', error);
@@ -145,11 +144,8 @@ const AdminDashboard = () => {
       setIsSubmitting(true);
       try {
         const response = await axiosClient.post('/games', gameData);
-        console.log('API Response:', response); // Debug log
-        
         // Handle different response structures consistently
         const newGame = response.data.data || response.data;
-        console.log('New game data:', newGame); // Debug log
 
         gameCreatedNotification();
         
@@ -306,8 +302,6 @@ const AdminDashboard = () => {
             participants: participants
           };
 
-          console.log('Submitting game data:', gameData); // Debug log
-
           // Use direct API call instead of going through GameManager
           await createGameFromModal(gameData);
           
@@ -371,6 +365,174 @@ const AdminDashboard = () => {
       return game.id || game._id || `game-${index}`;
     };
 
+
+     // Function to get the highest score from all tournaments
+ const getHighestScoreFromAllTournaments = (data) => {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return 0;
+    }
+
+    let highestScore = 0;
+
+    // Iterate through all tournaments
+    data.forEach(tournament => {
+      if (tournament.leaderboard) {
+        const { gameLeaderboards, overallLeaderboard } = tournament.leaderboard;
+
+        // Check individual game scores
+        if (gameLeaderboards) {
+          gameLeaderboards.forEach(game => {
+            // Check team scores in each game
+            if (game.teamScores) {
+              game.teamScores.forEach(team => {
+                if (team.totalScore > highestScore) {
+                  highestScore = team.totalScore;
+                }
+              });
+            }
+
+            // Check individual player scores in each game
+            if (game.playerScores) {
+              game.playerScores.forEach(player => {
+                if (player.score > highestScore) {
+                  highestScore = player.score;
+                }
+              });
+            }
+          });
+        }
+
+        // Check overall leaderboard scores
+        if (overallLeaderboard) {
+          // Check team rankings
+          if (overallLeaderboard.teamRankings) {
+            overallLeaderboard.teamRankings.forEach(team => {
+              if (team.totalScore > highestScore) {
+                highestScore = team.totalScore;
+              }
+            });
+          }
+
+          // Check player rankings
+          if (overallLeaderboard.playerRankings) {
+            overallLeaderboard.playerRankings.forEach(player => {
+              if (player.totalScore > highestScore) {
+                highestScore = player.totalScore;
+              }
+            });
+          }
+        }
+      }
+    });
+
+    return highestScore;
+  };
+
+    const getHighestIndividualPlayerScore = (data) => {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return 0;
+    }
+
+    let highestPlayerScore = 0;
+
+    // Iterate through all tournaments
+    data.forEach(tournament => {
+      if (tournament.leaderboard) {
+        const { gameLeaderboards, overallLeaderboard } = tournament.leaderboard;
+
+        // Check individual game player scores
+        if (gameLeaderboards) {
+          gameLeaderboards.forEach(game => {
+            // Check individual player scores in each game
+            if (game.playerScores) {
+              game.playerScores.forEach(player => {
+                if (player.score > highestPlayerScore) {
+                  highestPlayerScore = player.score;
+                }
+              });
+            }
+
+            // Also check player scores within team scores
+            if (game.teamScores) {
+              game.teamScores.forEach(team => {
+                if (team.playerScores) {
+                  team.playerScores.forEach(player => {
+                    if (player.score > highestPlayerScore) {
+                      highestPlayerScore = player.score;
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+
+        // Check overall player rankings
+        if (overallLeaderboard && overallLeaderboard.playerRankings) {
+          overallLeaderboard.playerRankings.forEach(player => {
+            if (player.totalScore > highestPlayerScore) {
+              highestPlayerScore = player.totalScore;
+            }
+          });
+        }
+      }
+    });
+
+    return highestPlayerScore;
+  };
+
+   const highestTeamScore = getHighestScoreFromAllTournaments(tournamentsList);
+
+   const highestIndividualScore = getHighestIndividualPlayerScore(tournamentsList);
+
+
+const toggleStatusOptimistic = async (tournamentId) => {
+  // Get current tournament
+  const currentTournament = tournamentsList.find(
+    tournament => (tournament.id || tournament._id) === tournamentId
+  );
+
+  if (!currentTournament) return;
+
+  // Determine new status
+  const newStatus = currentTournament.status === 'active' ? 'inactive' : 'active';
+
+  // Store original state for rollback
+  const originalTournamentsList = [...tournamentsList];
+
+  // Optimistically update UI
+  // If setting to active, set all others to inactive first
+  setTournamentsList(prev =>
+    prev.map(tournament => {
+      const id = tournament.id || tournament._id;
+      if (id === tournamentId) {
+        return { ...tournament, status: newStatus };
+      } else if (newStatus === 'active') {
+        // Set all other tournaments to inactive when one becomes active
+        return { ...tournament, status: 'inactive' };
+      }
+      return tournament;
+    })
+  );
+
+  try {
+    const response = await axiosClient.put(`/tournaments/${tournamentId}/status`, {
+      status: newStatus
+    });
+    
+    // Refresh the entire tournaments list to ensure consistency with backend
+    await fetchTournaments();
+
+  } catch (error) {
+    console.error('Error updating tournament status:', error);
+
+    // Revert to original state
+    setTournamentsList(originalTournamentsList);
+
+    alert('Failed to update tournament status. Please try again.');
+  }
+};
+ 
   if (!isAuthenticated) {
     return <div>Loading...</div>;
   }
@@ -420,8 +582,11 @@ const AdminDashboard = () => {
      const statsData = {
       totalGames: games.length,
       totalPlayers: games.reduce((acc, game) => acc + (game.participants?.length || 0), 0),
-      highestScore: 0,
-      activeGames: games.filter(g => g.status === 'active').length
+      highestTeamScore: highestTeamScore,
+      highestIndividualScore: highestIndividualScore,
+      activeGames: games.filter(g => g.status === 'active').length,
+      totalTournaments: tournamentsList.length,
+      
     };
   
     return (
@@ -429,7 +594,7 @@ const AdminDashboard = () => {
         <div className="min-h-screen bg-gradient-to-br from-blue-700 to-blue-400 p-3 sm:p-4 md:p-6 lg:p-8 font-sans">
           <AdminHeader />
           
-          <StatsCards stats={statsData} />
+          <StatsCards stats={statsData}  />
           
           {/* Tabbed Management Section */}
           <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl">
@@ -493,9 +658,9 @@ const AdminDashboard = () => {
                                 <div className="mb-3">
                                   <h4 className="font-bold text-gray-900 text-lg leading-tight mb-2">{game.name || `Game ${index + 1}`}</h4>
                                   <div className="inline-flex items-center gap-2 mb-3">
-                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Code:</span>
+                                   
                                     <span className="font-mono text-sm font-semibold text-gray-800 bg-white/60 px-2 py-1 rounded-lg border border-gray-200/50">
-                                      {game.gameCode.toUpperCase()}
+                                      {game.description}
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between mb-3">
@@ -594,8 +759,8 @@ const AdminDashboard = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {tournamentsList.map((tournament, index) => {
                           const tournamentId = tournament.id || tournament._id || `tournament-${index}`;
-                          const gamesCount = tournament.games?.length || 0;
-                          const playersCount = tournament.participants?.length || 0;
+                          const gamesCount = tournament.selectedGames?.length || 0;
+                          const playersCount = tournament.players?.length || 0;
                           
                           return (
                             <div key={tournamentId} className="group relative bg-gradient-to-br from-green-50 to-green-100/50 rounded-2xl shadow-sm border border-green-200/60 hover:shadow-xl hover:border-green-300 transition-all duration-300 hover:-translate-y-1">
@@ -660,17 +825,36 @@ const AdminDashboard = () => {
                                       )}
                                     </div>
                                   </div>
-                                  
-                                  <div className="flex items-center gap-2">
-                                    <span className={`inline-flex items-center px-2 rounded-full text-xs font-medium ${
-                                      tournament.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                    }`}>
-                                      {tournament.status || 'Active'}
-                                    </span>
-                                  </div>
+                                
+                                  <div className="flex justify-end">
+  <div className="flex items-center gap-2">
+    {/* Status Label */}
+    <span className={`text-sm font-medium ${tournament.status === 'active' ? 'text-green-600' : 'text-gray-600'}`}>
+      {tournament.status === 'active' ? 'Active' : 'Inactive'}
+    </span>
+
+    {/* Toggle Switch */}
+    <button
+      onClick={() => toggleStatusOptimistic(tournament.id)}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2
+        ${tournament.status == 'active' ? 'bg-green-500 focus:ring-green-500' : 'bg-gray-300 focus:ring-gray-400'}`}
+    >
+      {/* Optional Icon when Active */}
+      {tournament.status == 'active' && (
+        <span className="absolute left-1 text-white text-xs z-10">✓</span>
+      )}
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform 
+          ${tournament.status === "active" ? 'translate-x-6' : 'translate-x-1'}`}
+      />
+    </button>
+  </div>
+</div>
+
+
                                 </div>
                                 <div className="flex gap-2">
-                                  <Link to={`/tournament-scoring/${tournament._id}`} className="flex-1">
+                                  <Link to={`/tournament-scoring/${tournament.id}`} className="flex-1">
                                     <button className="w-full px-4 py-2 text-sm font-semibold bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 shadow-sm hover:shadow-md focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
                                       View Game Session
                                     </button>
@@ -680,11 +864,11 @@ const AdminDashboard = () => {
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                   </button>
-                                  <button className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 group-hover:opacity-100 opacity-70">
+                                  {/* <button className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all duration-200 group-hover:opacity-100 opacity-70">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
-                                  </button>
+                                  </button> */}
                                 </div>
                               </div>
                             </div>

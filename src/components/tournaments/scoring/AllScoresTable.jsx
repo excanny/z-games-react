@@ -4,31 +4,54 @@ import { Trophy, Users, Gamepad2, Plus, Edit, Eye, Medal, User } from 'lucide-re
 const AllScoresTable = ({ tournamentData }) => {
   const games = tournamentData?.selectedGames || [];
   const teams = tournamentData?.teams || [];
-  const playerRankings = tournamentData?.leaderboard?.overallLeaderboard?.playerRankings || [];
   
-  // Transform player rankings into individual score entries
+  // Transform player and team scores into individual score entries
   const allScores = [];
-  playerRankings.forEach(player => {
-    const team = teams.find(t => t.players.some(p => p._id === player.playerId));
-    const playerDetails = team?.players.find(p => p._id === player.playerId);
-    
-    if (player.gameBreakdown) {
-      player.gameBreakdown.forEach(gameScore => {
-        const game = games.find(g => g._id === gameScore.gameId);
+  
+  // Add team scores
+  teams.forEach(team => {
+    team.gameScores?.forEach(gameScore => {
+      const game = games.find(g => g.game_id === gameScore.gameId);
+      allScores.push({
+        gameId: gameScore.gameId,
+        gameName: gameScore.gameName || game?.name || 'Unknown Game',
+        teamId: team.id,
+        teamName: team.name,
+        playerId: null,
+        playerName: null,
+        score: gameScore.totalScore,
+        scoreType: 'team',
+        positiveScore: gameScore.positiveScore,
+        deductions: gameScore.deductions,
+        totalEntries: gameScore.totalEntries,
+        timestamp: new Date(gameScore.lastScoreDate)
+      });
+    });
+  });
+  
+  // Add individual player scores
+  teams.forEach(team => {
+    team.players?.forEach(player => {
+      player.gameScores?.forEach(gameScore => {
+        const game = games.find(g => g.game_id === gameScore.gameId);
         allScores.push({
           gameId: gameScore.gameId,
-          gameName: game?.name || 'Unknown Game',
-          teamId: team?._id || null,
-          teamName: team?.name || 'Unknown Team',
-          playerId: player.playerId,
-          playerName: playerDetails?.name || 'Unknown Player',
-          score: gameScore.score,
-          gameRank: gameScore.gameRank,
-          performanceRating: gameScore.performanceRating,
-          timestamp: new Date() // You might want to use actual timestamp from your data
+          gameName: gameScore.gameName || game?.name || 'Unknown Game',
+          teamId: team.id,
+          teamName: team.name,
+          playerId: player.id,
+          playerName: player.name,
+          score: gameScore.totalScore,
+          scoreType: 'player',
+          positiveScore: gameScore.positiveScore,
+          deductions: gameScore.deductions,
+          totalEntries: gameScore.totalEntries,
+          overallRank: player.overallRank,
+          teamRank: player.teamRank,
+          timestamp: new Date(gameScore.lastScoreDate)
         });
       });
-    }
+    });
   });
 
   // Sort by score descending
@@ -48,33 +71,48 @@ const AllScoresTable = ({ tournamentData }) => {
                 <th className="px-4 py-3 text-left font-medium text-gray-700">Game</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-700">Team</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-700">Player</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-700">Type</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-700">Score</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-700">Positive</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-700">Deductions</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-700">Rank</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">Rating</th>
               </tr>
             </thead>
             <tbody>
-              {allScores.map((score, index) => (
-                <tr key={`${score.playerId}-${score.gameId}`} className="border-b border-gray-200 hover:bg-gray-50">
+              {allScores.map((score) => (
+                <tr key={`${score.teamId}-${score.playerId || 'team'}-${score.gameId}`} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-800">{score.gameName}</td>
                   <td className="px-4 py-3 text-gray-600">{score.teamName}</td>
-                  <td className="px-4 py-3 text-gray-600">{score.playerName}</td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {score.playerName || (
+                      <span className="text-gray-400 italic">Team Score</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      score.scoreType === 'team' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {score.scoreType === 'team' ? 'Team' : 'Player'}
+                    </span>
+                  </td>
                   <td className={`px-4 py-3 font-bold ${score.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {score.score >= 0 ? '+' : ''}{score.score}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center space-x-1">
-                      {score.gameRank === 1 && <Trophy className="w-4 h-4 text-yellow-500" />}
-                      {score.gameRank === 2 && <Medal className="w-4 h-4 text-gray-400" />}
-                      {score.gameRank === 3 && <Medal className="w-4 h-4 text-orange-600" />}
-                      <span className="text-gray-600">#{score.gameRank}</span>
-                    </div>
+                  <td className="px-4 py-3 text-green-600 font-medium">
+                    +{score.positiveScore || 0}
+                  </td>
+                  <td className="px-4 py-3 text-red-600 font-medium">
+                    -{score.deductions || 0}
                   </td>
                   <td className="px-4 py-3">
-                    {score.performanceRating ? (
+                    {score.scoreType === 'player' && score.overallRank ? (
                       <div className="flex items-center space-x-1">
-                        <span className="text-yellow-500">★</span>
-                        <span className="text-gray-600">{score.performanceRating}</span>
+                        {score.overallRank === 1 && <Trophy className="w-4 h-4 text-yellow-500" />}
+                        {score.overallRank === 2 && <Medal className="w-4 h-4 text-gray-400" />}
+                        {score.overallRank === 3 && <Medal className="w-4 h-4 text-orange-600" />}
+                        <span className="text-gray-600">#{score.overallRank}</span>
                       </div>
                     ) : (
                       <span className="text-gray-400">-</span>
@@ -94,6 +132,5 @@ const AllScoresTable = ({ tournamentData }) => {
     </div>
   );
 };
-
 
 export default AllScoresTable;

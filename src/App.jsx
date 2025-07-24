@@ -21,7 +21,7 @@ function App() {
        
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Scoreboard />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route 
               path="/admin-dashboard" 
@@ -33,7 +33,6 @@ function App() {
             />
             <Route path="/admin-dashboard-leaderboard" element={<Leaderboard />} />
             <Route path="/scoreboard/:gameId" element={<Scoreboard />} />
-            <Route path="/game/:gameId" element={<SingleGame />} />
             <Route path="/game-setup" element={<GameTemplateWizard />} />
             <Route path="/tournament-leaderboard" element={<TournamentLeaderboard />} />
             <Route path="/tournament-scoring/:tournamentId" element={<TournamentScoring />} />

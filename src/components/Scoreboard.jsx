@@ -1,46 +1,82 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axiosClient from '../utils/axiosClient';
 import { Link, useParams } from 'react-router-dom';
 import io from 'socket.io-client';
-import config from "../config";
-import { Trophy, Users, Target, Wifi, WifiOff, RefreshCw, ArrowLeft, Crown, Medal, Award } from 'lucide-react';
+import { Trophy, Users, Target, Wifi, WifiOff, RefreshCw, ArrowLeft, Crown, Medal, Award, Gamepad2, Clock, Handshake, ChevronUp, ChevronDown } from 'lucide-react';
+import ScoreboardHeader from './ScoreboardHeader'; 
+import LoadingSpinner from './LoadingSpinner';
+import TournamentInfo from './TournamentInfo';
+import TournamentStatsCards from './TournamentStatsCards';
+import NoTournamentFound from './NoTournamentFound';
+import axiosClient from '../utils/axiosClient';
 
 const Scoreboard = () => {
-  const [gameData, setGameData] = useState(null);
+  const [tournamentData, setTournamentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [longLoading, setLongLoading] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [expandedTeams, setExpandedTeams] = useState(new Set());
 
-  const { gameId } = useParams();
+  const { tournamentId } = useParams();
   const socketRef = useRef(null);
 
-  const avatarEmojis = {
-    'bear': '🐻',
-    'rabbit': '🐰',
-    'cat': '🐱',
-    'dog': '🐶',
-    'fox': '🦊',
-    'lion': '🦁',
-    'tiger': '🐯',
-    'panda': '🐼'
+  // Animal avatar mapping
+ const animalAvatars = {Lion:'🦁',Tiger:'🐯',Eagle:'🦅',Cat:'🐱',Shark:'🦈',Dog:'🐶',Whale:'🐋',Horse:'🐴',Bison:'🦬',Moose:'🫎',Goose:'🪿',Turtle:'🐢',Beaver:'🦫',Bear:'🐻',Frog:'🐸',Rabbit:'🐰',Wolf:'🐺',Human:'🧑',Monkey:'🐵',Chameleon:'🦎'};
+
+  const toggleTeamExpansion = (teamId) => {
+    const newExpanded = new Set(expandedTeams);
+    if (newExpanded.has(teamId)) {
+      newExpanded.delete(teamId);
+    } else {
+      newExpanded.add(teamId);
+    }
+    setExpandedTeams(newExpanded);
   };
 
-  const getColorClass = (hexColor, rank) => {
-    if (rank === 1) return 'text-yellow-500';
-    if (rank === 2) return 'text-gray-400';
-    if (rank === 3) return 'text-amber-600';
-    const colorMap = {
-      '#8C33FF': 'text-purple-500',
-      '#FF33F5': 'text-pink-500',
-      '#33FF57': 'text-green-500',
-      '#3357FF': 'text-blue-500',
-      '#FF5733': 'text-red-500',
-      '#FFFF33': 'text-yellow-500',
-      '#33FFFF': 'text-cyan-500'
-    };
-    return colorMap[hexColor] || 'text-blue-500';
+
+ // Fetch tournament data using axiosClient
+  const fetchTournamentData = async () => {
+    //debugger
+    try {
+      setError(null);
+      const response = await axiosClient.get('/tournaments/leaderboard');
+
+      if (response?.data?.success) {
+        setTournamentData(response?.data?.data);
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch game session data');
+      }
+    } catch (err) {
+      console.error('Error fetching game session data:', err);
+      
+      // Handle specific error cases
+      if (err.response?.status === 404) {
+        setTournamentData(null);
+        return;
+      }
+      
+      // Handle axios errors
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err.message === 'Token expired') {
+        setError('Authentication expired. Please login again.');
+      } else if (err.code === 'ECONNREFUSED' || err.code === 'ERR_NETWORK') {
+        setError('Unable to connect to server. Please check your connection.');
+      } else {
+        setError(err.message || 'An unexpected error occurred');
+      }
+    }
   };
+
+   const getProgressBarColor = (rank) => {
+    switch (rank) {
+      case 1: return 'bg-gradient-to-r from-yellow-400 to-yellow-600';
+      case 2: return 'bg-gradient-to-r from-gray-400 to-gray-600';
+      case 3: return 'bg-gradient-to-r from-amber-400 to-amber-600';
+      default: return 'bg-gradient-to-r from-blue-400 to-blue-600';
+    }
+  };
+
 
   const getRankIcon = (rank) => {
     switch (rank) {
@@ -51,73 +87,56 @@ const Scoreboard = () => {
     }
   };
 
-  const getPlayerCardStyle = (rank) => {
+  const getTeamCardStyle = (rank) => {
     switch (rank) {
       case 1:
-        return "bg-gradient-to-r from-yellow-50 via-amber-50 to-yellow-50 border-2 border-yellow-200 shadow-lg transform hover:scale-105";
+        return "bg-gradient-to-r from-yellow-50 via-amber-50 to-yellow-50 border-2 border-yellow-200 shadow-lg";
       case 2:
-        return "bg-gradient-to-r from-gray-50 via-slate-50 to-gray-50 border-2 border-gray-200 shadow-md transform hover:scale-105";
+        return "bg-gradient-to-r from-gray-50 via-slate-50 to-gray-50 border-2 border-gray-200 shadow-md";
       case 3:
-        return "bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-200 shadow-md transform hover:scale-105";
+        return "bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-200 shadow-md";
       default:
-        return "bg-white border border-slate-200 hover:border-slate-300 shadow-sm transform hover:scale-102";
+        return "bg-white border border-slate-200 shadow-sm";
     }
   };
 
-  const fetchGameData = async () => {
-    try {
-      setError(null);
-      
-      const response = await axiosClient.get(`/games/${gameId}/leaderboard`, {
-        timeout: 10000,
-      });
-
-      const apiResponse = response.data;
-
-      if (apiResponse.status !== 'success') {
-        throw new Error(apiResponse.message || 'Failed to fetch game data');
+  // Helper function to get team game scores from gameWiseBreakdown
+  const getTeamGameScores = (teamId) => {
+    if (!tournamentData?.gameWiseBreakdown) return [];
+    
+    const teamGameScores = [];
+    tournamentData.gameWiseBreakdown.forEach(game => {
+      const teamScore = game.teamScores.find(ts => ts.teamId === teamId);
+      if (teamScore) {
+        teamGameScores.push({
+          game: game.gameName,
+          score: parseInt(teamScore.score)
+        });
       }
-
-      const transformedData = {
-        name: apiResponse.data.name,
-        type: 'Game',
-        round: 'Live',
-        lastGamesUpdateAt: new Date(apiResponse.data.lastGamesUpdateAt).toLocaleString('en-US', {
-          month: 'long',
-          day: 'numeric',
-          year: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true
-        }),
-        longestStreak: apiResponse.data.longestStreak,
-        players: apiResponse.data.leaderboard.map(player => ({
-          name: player.name,
-          points: player.score,
-          rank: player.rank,
-          avatar: player.avatar,
-          color: getColorClass(player.color, player.rank),
-          isStreakKing: apiResponse.data.longestStreak && player.name === apiResponse.data.longestStreak.playerName
-        }))
-      };
-
-      setGameData(transformedData);
-    } catch (err) {
-      console.error('Error fetching game data:', err);
-      setError(err.message);
-    }
+    });
+    
+    return teamGameScores;
   };
+
+  // Helper function to format player game scores
+  const getFormattedPlayerGameScores = (player) => {
+    if (!player.gameScores) return [];
+    
+    return player.gameScores.map(gameScore => ({
+      game: gameScore.gameName,
+      score: parseInt(gameScore.totalScore)
+    }));
+  };
+
 
   useEffect(() => {
     // Initialize socket connection
     const initializeSocket = () => {
-      // Disconnect existing socket if any
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
 
-      // Create new socket connection
-     socketRef.current = io(config.socketBaseUrl, {
+      socketRef.current = io('http://localhost:5000', {
         transports: ['websocket', 'polling'],
         timeout: 20000,
         forceNew: true
@@ -125,10 +144,9 @@ const Scoreboard = () => {
 
       const socket = socketRef.current;
 
-      // Connection event handlers
       const handleConnect = () => {
-        console.log('✅ Connected to socket.io server');
         setIsConnected(true);
+        socket.emit('joinTournament', tournamentId);
       };
 
       const handleDisconnect = (reason) => {
@@ -136,84 +154,59 @@ const Scoreboard = () => {
         setIsConnected(false);
       };
 
-      const handleConnectError = (err) => {
-        console.error('❌ Connection error:', err.message);
-        setIsConnected(false);
-      };
-
-      // Real-time update handlers
       const handleLeaderboardUpdate = (data) => {
-        console.log('📊 Leaderboard update received:', data);
-        if (data.gameId === gameId) {
-          fetchGameData();
+        if (data.tournamentId === tournamentId) {
+          fetchTournamentData();
         }
       };
 
-      const handlePlayerUpdate = (data) => {
-        console.log('👤 Player update received:', data);
-        if (data.gameId === gameId) {
-          fetchGameData();
+      const handleScoreUpdate = (data) => {
+        if (data.tournamentId === tournamentId) {
+          fetchTournamentData();
         }
       };
 
-      // Register event listeners
       socket.on('connect', handleConnect);
       socket.on('disconnect', handleDisconnect);
-      socket.on('connect_error', handleConnectError);
       socket.on('leaderboardUpdated', handleLeaderboardUpdate);
-      socket.on('playerAdded', handlePlayerUpdate);
-      socket.on('playerReactivated', handlePlayerUpdate);
-      socket.on('playerDeactivated', handlePlayerUpdate);
-      socket.on('bulkPlayersAdded', handlePlayerUpdate);
-      socket.on('bulkPlayersReactivated', handlePlayerUpdate);
-
-      // Set initial connection state
-      setIsConnected(socket.connected);
+      socket.on('scoreUpdated', handleScoreUpdate);
+      socket.on('tournamentUpdated', handleLeaderboardUpdate);
 
       return socket;
     };
 
-    // Initialize socket and fetch initial data
     const socket = initializeSocket();
     
-    // Fetch initial game data
     const loadInitialData = async () => {
       setLoading(true);
       setLongLoading(false);
       
-      await fetchGameData();
+      await fetchTournamentData();
       setLoading(false);
     };
 
     loadInitialData();
 
-    // Set up long loading timer
     const timer = setTimeout(() => {
       if (loading) setLongLoading(true);
     }, 10000);
 
-    // Cleanup function
     return () => {
       clearTimeout(timer);
       if (socket) {
         socket.off('connect');
         socket.off('disconnect');
-        socket.off('connect_error');
         socket.off('leaderboardUpdated');
-        socket.off('playerAdded');
-        socket.off('playerReactivated');
-        socket.off('playerDeactivated');
-        socket.off('bulkPlayersAdded');
-        socket.off('bulkPlayersReactivated');
+        socket.off('scoreUpdated');
+        socket.off('tournamentUpdated');
         socket.disconnect();
       }
     };
-  }, [gameId]); // Only depend on gameId
+  }, [tournamentId]);
 
-  // Add reconnection logic
+  // Reconnection logic
   useEffect(() => {
-    if (!isConnected && gameData) {
-      console.log('🔄 Attempting to reconnect...');
+    if (!isConnected && tournamentData) {
       const reconnectTimer = setTimeout(() => {
         if (socketRef.current) {
           socketRef.current.connect();
@@ -222,276 +215,321 @@ const Scoreboard = () => {
 
       return () => clearTimeout(reconnectTimer);
     }
-  }, [isConnected, gameData]);
+  }, [isConnected, tournamentData]);
 
-  const LoadingSpinner = () => (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="text-center">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-200 border-t-blue-600 mx-auto mb-6"></div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Trophy className="w-8 h-8 text-blue-600" />
-          </div>
-        </div>
-        <h3 className="text-xl font-semibold text-slate-700 mb-2">Loading Game Data</h3>
-        <p className="text-slate-500">Connecting to live server...</p>
-        {longLoading && (
-          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg max-w-sm mx-auto">
-            <p className="text-amber-700 text-sm">Taking longer than expected. Please check your connection.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const ErrorDisplay = () => (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-slate-50">
-      <div className="text-center max-w-md mx-auto p-8">
-        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <WifiOff className="w-10 h-10 text-red-500" />
-        </div>
-        <h2 className="text-2xl font-bold text-slate-800 mb-3">Error Loading Game</h2>
-        <p className="text-slate-600 mb-6">{error}</p>
-        <div className="space-y-3">
-          <button 
-            onClick={() => window.location.reload()} 
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Retry
-          </button>
-          <Link 
-            to="/" 
-            className="w-full text-slate-600 hover:text-slate-800 transition-colors flex items-center justify-center gap-2 py-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Home
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-
-  const NoDataDisplay = () => (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="text-center max-w-md mx-auto p-8">
-        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Trophy className="w-10 h-10 text-slate-400" />
-        </div>
-        <h2 className="text-2xl font-bold text-slate-800 mb-3">No Game Data Available</h2>
-        <p className="text-slate-600 mb-6">Unable to load game information</p>
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </Link>
-      </div>
-    </div>
-  );
+  //Loading spinner component
+  <LoadingSpinner longLoading={longLoading}/>
 
   if (loading) return <LoadingSpinner />;
-  if (error) return <ErrorDisplay />;
-  if (!gameData) return <NoDataDisplay />;
-
-  const { name, type, round, players, lastGamesUpdateAt, longestStreak } = gameData;
-  const highestScore = players.length > 0 ? Math.max(...players.map(p => p.points)) : 0;
-  const totalPlayers = players.length;
+  if (error) return <ErrorDisplay error={error}/>;
+  if (tournamentData?.leaderboard?.length == 0) return <NoTournamentFound/>
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div>
-                  <h1 className="text-3xl font-bold text-blue-800">Z-Games  <span className="text-sm text-slate-500">Live Scoreboard</span></h1>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                isConnected 
-                  ? 'bg-green-100 text-green-700' 
-                  : 'bg-red-100 text-red-700'
-              }`}>
-                {isConnected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
-                {isConnected ? 'Live' : 'Offline'}
-                {!isConnected && (
-                  <span className="text-xs ml-2">Reconnecting...</span>
-                )}
-              </div>
-              <Link 
-                to="/" 
-                className="flex items-center gap-2 text-slate-600 hover:text-slate-800 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Home</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ScoreboardHeader isConnected={isConnected}/>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Game Info */}
-        <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold text-slate-800 mb-2">{name}</h2>
-          <div className="flex items-center justify-center gap-4 text-slate-600">
-            <span className="flex items-center gap-1">
-              <Target className="w-4 h-4" />
-              {type}
-            </span>
-            <span>•</span>
-            <span>{round}</span>
-          </div>
-        </div>
+        {/* Tournament Info */}
+        <TournamentInfo tournamentData={tournamentData}/>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm font-medium">Active Players</p>
-                <p className="text-3xl font-bold text-slate-800">{totalPlayers}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm font-medium">Highest Score</p>
-                <p className="text-3xl font-bold text-slate-800">{highestScore.toLocaleString()}</p>
-              </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm font-medium">Current Round</p>
-                <p className="text-3xl font-bold text-slate-800">{round}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <Target className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
+        <TournamentStatsCards tournamentData={tournamentData}/>
 
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-600 text-sm font-medium">Longest Streak</p>
-                <p className="text-3xl font-bold text-slate-800">{longestStreak?.longestStreak || 0}</p>
-                {longestStreak && (
-                  <p className="text-xs text-slate-500 mt-1">{longestStreak.playerName}</p>
-                )}
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                <span className="text-2xl">🔥</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Leaderboard */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-8 py-6">
+         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+          <div className="bg-gradient-to-r from-indigo-900 to-purple-800 px-8 py-6">
             <h3 className="text-2xl font-bold text-white text-center flex items-center justify-center gap-2">
               <Trophy className="w-6 h-6" />
-              Live Rankings
+              Team Rankings
             </h3>
           </div>
-
-          <div className="p-6">
-            {players.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-8 h-8 text-slate-400" />
-                </div>
-                <p className="text-slate-500 text-lg">No active players yet</p>
-                <p className="text-slate-400 text-sm mt-1">Players will appear here when they join</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {players.map((player, index) => (
-                  <div
-                    key={player.name}
-                    className={`${getPlayerCardStyle(player.rank)} rounded-2xl p-6 transition-all duration-300`}
-                    style={{ animationDelay: `${index * 100}ms` }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 flex items-center justify-center">
-                            {getRankIcon(player.rank)}
+        
+         <div className="p-6">
+                  <div className="space-y-6">
+                    {tournamentData?.teamRankings?.map((team, index) => (
+                      <div
+                        key={team.id}
+                        className={`rounded-2xl p-6 transition-all duration-300 hover:scale-[1.01] ${getTeamCardStyle(index + 1)}`}
+                      >
+                        {/* Team Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 flex items-center justify-center">
+                              {getRankIcon(index + 1)}
+                            </div>
+                            <div>
+                              <h4 className="text-2xl font-bold text-slate-800">{team.name}</h4>
+                              <p className="text-slate-500 text-sm">{team.players.length} active players</p>
+                            </div>
                           </div>
-                          <div className="text-3xl">
-                            {avatarEmojis[player.avatar] || '👤'}
+                          
+                          <div className="text-right">
+                            <div className="text-4xl font-bold text-slate-800">
+                              {parseInt(team.totalScore).toLocaleString()}
+                            </div>
+                            <p className="text-slate-500 text-sm">team score</p>
                           </div>
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-xl font-bold text-slate-800">{player.name}</h4>
-                            {player.isStreakKing && (
-                              <div className="bg-gradient-to-r from-orange-400 to-red-500 px-3 py-1 rounded-full flex items-center gap-1">
-                                <span className="text-sm">🔥</span>
-                                <span className="text-xs font-bold text-white">STREAK KING</span>
+        
+                        {/* Team Score Progress Bar */}
+                        <div className="mb-4">
+                          <div className="w-full bg-slate-200 rounded-full h-3">
+                            <div 
+                              className={`h-3 rounded-full transition-all duration-1000 ${getProgressBarColor(index + 1)}`}
+                              style={{ 
+                                width: `${(parseInt(team.totalScore) / parseInt(tournamentData.teamRankings[0].totalScore)) * 100}%`
+                              }}
+                            ></div>
+                          </div>
+                          <div className="flex justify-between items-center mt-2">
+                            <span className="text-xs text-slate-500">
+                              {/* {((parseInt(team.totalScore) / parseInt(tournamentData[0].totalScore)) * 100).toFixed(1)}% of highest team score */}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              Avg per player: {Math.round(parseInt(team.totalScore) / team.players.length).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+        
+                        {/* Score Breakdown */}
+                        <div className="mb-4 bg-white/60 rounded-xl p-4 border border-white/50">
+                          <div className="flex items-center justify-between mb-3">
+                            <h5 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                              <Trophy className="w-4 h-4 text-slate-600" />
+                              Score Breakdown
+                            </h5>
+                            <button
+                              onClick={() => toggleTeamExpansion(`${team.id}-scores`)}
+                              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              {expandedTeams.has(`${team.id}-scores`) ? (
+                                <>
+                                  <ChevronUp className="w-4 h-4" />
+                                  Hide Team Game Scores
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-4 h-4" />
+                                  Show Team Game Scores
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white/80 rounded-lg p-3 text-center">
+                              <div className="text-2xl font-bold text-slate-800">
+                                {team.players.reduce((sum, player) => sum + parseInt(player.score), 0).toLocaleString()}
                               </div>
-                            )}
-                          </div>
-                          <p className="text-slate-500 text-sm">Rank #{player.rank}</p>
-                        </div>
-                      </div>
+                              <p className="text-xs text-slate-500">Player Scores</p>
+                            </div>
+                            
+                            <div className="bg-white/80 rounded-lg p-3 text-center">
+                              <div className="text-2xl font-bold text-slate-800">
+                                {team.teamBonus.toLocaleString()}
+                              </div>
+                              <p className="text-xs text-slate-500">Team Bonuses</p>
+                            </div>
                       
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-slate-800">
-                          {player.points.toLocaleString()}
+                            <div className="relative bg-gradient-to-br from-blue-100 via-white to-blue-50 border border-blue-300 rounded-xl px-4 py-3 shadow-sm text-center">
+                              <div className="text-4xl font-semibold text-blue-800 drop-shadow-sm">
+                                {parseInt(team.totalScore).toLocaleString()}
+                              </div>
+                              <p className="mt-1 text-xs font-medium text-blue-500 uppercase tracking-wide">
+                                Total Score
+                              </p>
+                              <div className="absolute top-2 right-2 w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-3 text-center">
+                            <p className="text-xs text-slate-500">
+                              {team.players.reduce((sum, player) => sum + parseInt(player.score), 0).toLocaleString()} (individual scores) + {team.teamBonus.toLocaleString()} (team scores) = {parseInt(team.totalScore).toLocaleString()} (total)
+                            </p>
+                          </div>
+        
+                          {/* Team Game Scores - Expandable */}
+                          {expandedTeams.has(`${team.id}-scores`) && (
+                            <div className="mt-4 border-t border-slate-200 pt-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Target className="w-4 h-4 text-slate-600" />
+                                <span className="text-sm font-medium text-slate-700">Team Performance by Game</span>
+                              </div>
+                              {(() => {
+                                const teamGameScores = getTeamGameScores(team.id);
+                                return teamGameScores.length > 0 ? (
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {teamGameScores.map((gameScore, gameIndex) => (
+                                      <div key={gameIndex} className="bg-white/80 rounded-lg p-3 border border-slate-100">
+                                        <div className="text-center">
+                                          <div className="text-lg font-bold text-slate-800">{gameScore.score.toLocaleString()}</div>
+                                          <div className="text-xs text-slate-500 font-medium">{gameScore.game}</div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-center text-sm text-slate-500">
+                                    No team-only scores earned
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
                         </div>
-                        <p className="text-slate-500 text-sm">points</p>
-                      </div>
-                    </div>
-                    
-                    {/* Progress Bar for Top 3 */}
-                    {player.rank <= 3 && highestScore > 0 && (
-                      <div className="mt-4">
-                        <div className="w-full bg-slate-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full transition-all duration-1000 ${
-                              player.rank === 1 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
-                              player.rank === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-600' :
-                              'bg-gradient-to-r from-amber-400 to-amber-600'
-                            }`}
-                            style={{ 
-                              width: `${(player.points / highestScore) * 100}%`
-                            }}
-                          ></div>
+        
+                        {/* Team Position Badge */}
+                        <div className="flex justify-between items-center mb-4">
+                          <div className="flex items-center gap-2">
+                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                              index === 0 ? 'bg-yellow-200 text-yellow-800' :
+                              index === 1 ? 'bg-gray-200 text-gray-800' :
+                              index === 2 ? 'bg-amber-200 text-amber-800' :
+                              'bg-blue-200 text-blue-800'
+                            }`}>
+                              #{index + 1}
+                            </div>
+                            <span className="text-sm text-slate-600">
+                              {index === 0 ? 'Champion' :
+                              index === 1 ? 'Runner-up' :
+                              index === 2 ? 'Third Place' :
+                              `${index + 1}th Place`}
+                            </span>
+                          </div>
+                          
+                          {index === 0 && tournamentData.teamRankings[1] && (
+                            <div className="text-yellow-600 text-sm font-medium flex items-center gap-1">
+                              <Crown className="w-4 h-4" />
+                              Leading by {(parseInt(team.totalScore) - parseInt(tournamentData.teamRankings[1].totalScore)).toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+        
+                        {/* Individual Player Scores */}
+                        <div className="bg-white/60 rounded-xl p-4 border border-white/50">
+                          <div className="flex items-center justify-between mb-3">
+                            <h5 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                              <Users className="w-4 h-4 text-slate-600" />
+                              Individual Player Scores
+                            </h5>
+                            <button
+                              onClick={() => toggleTeamExpansion(`${team.id}-players`)}
+                              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              {expandedTeams.has(`${team.id}-players`) ? (
+                                <>
+                                  <ChevronUp className="w-4 h-4" />
+                                  Hide Player Game Details
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-4 h-4" />
+                                  Show Player Game Details
+                                </>
+                              )}
+                            </button>
+                          </div>
+                  
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {team.players
+                              .sort((a, b) => parseInt(b.score) - parseInt(a.score))
+                              .map((player, playerIndex) => (
+                                <div
+                                  key={player.id}
+                                  className="bg-white/90 rounded-xl border border-slate-200/50 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                                >
+                                  <div className="p-3">
+                                    <div className="flex items-center gap-2">
+                                      {/* Rank Badge */}
+                                      <div className="w-6 h-6 flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 rounded-full text-xs font-bold text-slate-700">
+                                        {playerIndex + 1}
+                                      </div>
+                                      
+                                      {/* Avatar */}
+                                      <div className="text-xl">
+                                        {animalAvatars[player.animal?.name] || '👤'}
+                                      </div>
+                                      
+                                      {/* Player Info with Score */}
+                                      <div className="flex items-center justify-between flex-1 min-w-0">
+                                        <div className="min-w-0">
+                                          <h3 className="font-semibold text-slate-900 text-sm truncate">
+                                            {player.name}
+                                          </h3>
+                                          <p className="text-xs text-slate-500">{player.animal?.name}</p>
+                                        </div>
+                                        
+                                        {/* Score Badge - Close to name */}
+                                        <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-sm ml-2 animate-pulse hover:animate-bounce hover:scale-110 transition-transform duration-200">
+                                          {parseInt(player.score).toLocaleString()}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Team Contribution - Compact */}
+                                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+                                      <div className="text-xs text-slate-400">
+                                        Team Contribution
+                                      </div>
+                                      <div className="bg-slate-100 px-2 py-0.5 rounded text-xs font-medium text-slate-600">
+                                        {`${(((parseInt(player?.score) / parseInt(team?.totalScore)) * 100) || 0).toFixed(1)}%`}
+
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Game Details - Expandable */}
+                                  {expandedTeams.has(`${team.id}-players`) && (
+                                    <div className="border-t border-slate-100 p-3 bg-gradient-to-r from-slate-50/80 to-slate-100/30">
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <Gamepad2 className="w-4 h-4 text-slate-600" />
+                                        <span className="text-sm font-medium text-slate-700">Game Scores Breakdown</span>
+                                      </div>
+                                      {(() => {
+                                        const playerGameScores = getFormattedPlayerGameScores(player);
+                                        return playerGameScores.length > 0 ? (
+                                          <div className="grid grid-cols-1 gap-2">
+                                            {playerGameScores.map((gameScore, gameIndex) => (
+                                              <div key={gameIndex} className="flex justify-between items-center bg-white/60 rounded-lg px-3 py-2 border border-slate-200/50">
+                                                <span className="text-sm text-slate-700 font-medium">
+                                                  {gameScore.game}
+                                                </span>
+                                                <div className="text-xs font-semibold">
+                                                  {gameScore.score.toLocaleString()}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <div className="text-center text-sm text-slate-500 py-2">
+                                            Individual game scores not available
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+        
                         </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+
           </div>
 
-          <div className="bg-slate-50 px-8 py-4 border-t border-slate-200">
-            <div className="flex justify-between items-center text-sm text-slate-600">
-              <span>Live {type} • Auto-updating</span>
-              <span>Last updated: {lastGamesUpdateAt}</span>
-            </div>
-          </div>
+     
+        {/* Admin Login Link */}
+        <div className="mt-12 text-center">
+          <Link 
+            to="/admin-login" 
+            className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-600 transition-colors text-sm"
+          >
+            <span>Admin Login</span>
+            <ArrowLeft className="w-3 h-3 rotate-180" />
+          </Link>
         </div>
       </div>
     </div>

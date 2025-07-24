@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft, Trophy, Users, Zap, X } from 'lucide-react';
+import axiosClient  from '../utils/axiosClient';
 
 const TournamentModal = ({ 
   isOpen, 
@@ -154,20 +155,66 @@ const TournamentModal = ({
     setPlayers(updated);
   };
 
- const toggleGameSelection = (event) => {
+//  const toggleGameSelection = (event) => {
+//   const { value, checked } = event.target;
+  
+//   setTournament(prev => {
+//     const currentSelectedGames = prev.selectedGames || [];
+    
+//     if (checked) {
+//       // Add the game ID if it's not already selected
+//       if (!currentSelectedGames.includes(value)) {
+//         return {
+//           ...prev,
+//           selectedGames: [...currentSelectedGames, value]
+//         };
+//       }
+//     } else {
+//       // Remove the game ID
+//       return {
+//         ...prev,
+//         selectedGames: currentSelectedGames.filter(gameId => gameId !== value)
+//       };
+//     }
+    
+//     return prev;
+//   });
+// };
+
+// const toggleGameSelection = (event) => {
+//   const { value, checked } = event.target;
+  
+//   setTournament(prev => {
+//     const currentSelectedGames = prev.selectedGames || [];
+    
+//     if (checked) {
+//       // Add the game ID if it's not already selected
+//       return {
+//         ...prev,
+//         selectedGames: [...currentSelectedGames, value]
+//       };
+//     } else {
+//       // Remove the game ID
+//       return {
+//         ...prev,
+//         selectedGames: currentSelectedGames.filter(gameId => gameId !== value)
+//       };
+//     }
+//   });
+// };
+
+const toggleGameSelection = (event) => {
   const { value, checked } = event.target;
   
   setTournament(prev => {
     const currentSelectedGames = prev.selectedGames || [];
     
     if (checked) {
-      // Add the game ID if it's not already selected
-      if (!currentSelectedGames.includes(value)) {
-        return {
-          ...prev,
-          selectedGames: [...currentSelectedGames, value]
-        };
-      }
+      // Add the game ID
+      return {
+        ...prev,
+        selectedGames: [...currentSelectedGames, value]
+      };
     } else {
       // Remove the game ID
       return {
@@ -175,70 +222,290 @@ const TournamentModal = ({
         selectedGames: currentSelectedGames.filter(gameId => gameId !== value)
       };
     }
-    
-    return prev;
   });
 };
 
-  const submitTournament = async () => {
-    setIsLoading(true);
-    setErrors({});
+  // const submitTournament = async () => {
+  //   setIsLoading(true);
+  //   setErrors({});
 
-    try {
-      // Prepare the data in the format expected by your API
-      const tournamentData = {
-        tournament: {
-          name: tournament.name,
-          description: tournament.description,
-          selectedGames: tournament.selectedGames,
-          createdAt: new Date().toISOString()
-        },
-        teams: teams.map(team => ({
-          id: team.id,
-          name: team.name,
-          players: (players[team.id] || []).map(player => ({
-            id: parseInt(player.id),
-            name: player.name,
-            avatar: player.avatar,
-            avatarName: avatars.find(a => a.emoji === player.avatar)?.name || ''
-          }))
-        }))
-      };
+  //   try {
+  //     // Prepare the data in the format expected by your API
+  //     const tournamentData = {
+  //       tournament: {
+  //         name: tournament.name,
+  //         description: tournament.description,
+  //         selectedGames: tournament.selectedGames,
+  //         createdAt: new Date().toISOString()
+  //       },
+  //       teams: teams.map(team => ({
+  //         id: team.id,
+  //         name: team.name,
+  //         players: (players[team.id] || []).map(player => ({
+  //           id: parseInt(player.id),
+  //           name: player.name,
+  //           avatar: player.avatar,
+  //           avatarName: avatars.find(a => a.emoji === player.avatar)?.name || ''
+  //         }))
+  //       }))
+  //     };
 
-      // Make the API call
-      const response = await fetch('http://localhost:5000/api/tournaments', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(tournamentData)
-      });
+  //     // Make the API call
+  //     const response = await fetch('http://localhost:5000/api/tournaments', {
+  //       method: 'POST',
+  //       headers: {
+  //         'accept': 'application/json',
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify(tournamentData)
+  //     });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
+  //     if (!response.ok) {
+  //       const errorData = await response.json().catch(() => ({}));
+  //       throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+  //     }
 
-      const result = await response.json();
+  //     const result = await response.json();
       
-      // Call the parent callback with the result
-      if (onCreateTournament) {
-        await onCreateTournament(result);
-      }
+  //     // Call the parent callback with the result
+  //     if (onCreateTournament) {
+  //       await onCreateTournament(result);
+  //     }
       
-      // Close the modal on success
-      onClose();
+  //     // Close the modal on success
+  //     onClose();
       
-    } catch (error) {
-      console.error('Error creating game session:', error);
-      setErrors({ 
-        submit: error.message || 'Failed to create game session. Please check your connection and try again.' 
-      });
-    } finally {
-      setIsLoading(false);
+  //   } catch (error) {
+  //     console.error('Error creating game session:', error);
+  //     setErrors({ 
+  //       submit: error.message || 'Failed to create game session. Please check your connection and try again.' 
+  //     });
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
+// const submitTournament = async () => {
+//   setIsLoading(true);
+//   setErrors({});
+
+//   try {
+//     // Debug logging to see what we're sending
+//     console.log('Tournament data before submit:', {
+//       selectedGames: tournament.selectedGames,
+//       teams: teams,
+//       players: players
+//     });
+
+//     // Validate that we have selected games
+//     if (!tournament.selectedGames || tournament.selectedGames.length === 0) {
+//       throw new Error('Please select at least one game for the tournament');
+//     }
+
+//     // Prepare the data in the exact format expected by your API
+//     const tournamentData = {
+//       tournament: {
+//         name: tournament.name,
+//         description: tournament.description,
+//         createdAt: new Date().toISOString()
+//       },
+//       teams: teams.map(team => ({
+//         id: team.id,
+//         name: team.name,
+//         players: (players[team.id] || []).map(player => ({
+//           id: parseInt(player.id),
+//           name: player.name,
+//           avatar: player.avatar,
+//           avatarName: avatars.find(a => a.emoji === player.avatar)?.name || ''
+//         }))
+//       })),
+//       selectedGames: tournament.selectedGames // This should be an array of game IDs at root level
+//     };
+
+//     console.log('Sending tournament data:', tournamentData);
+
+//     // Make the API call
+//     const response = await fetch('http://localhost:5000/api/tournaments', {
+//       method: 'POST',
+//       headers: {
+//         'accept': 'application/json',
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify(tournamentData)
+//     });
+
+//     if (!response.ok) {
+//       const errorData = await response.json().catch(() => ({}));
+//       console.error('Server error response:', errorData);
+//       throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+//     }
+
+//     const result = await response.json();
+//     console.log('Tournament created successfully:', result);
+    
+//     // Call the parent callback with the result
+//     if (onCreateTournament) {
+//       await onCreateTournament(result);
+//     }
+    
+//     // Close the modal on success
+//     onClose();
+    
+//   } catch (error) {
+//     console.error('Error creating game session:', error);
+//     setErrors({ 
+//       submit: error.message || 'Failed to create game session. Please check your connection and try again.' 
+//     });
+//   } finally {
+//     setIsLoading(false);
+//   }
+// };
+
+// const submitTournament = async () => {
+//   debugger
+//   setIsLoading(true);
+//   setErrors({});
+
+//   try {
+//     // Debug logging to see what we're sending
+//     console.log('Tournament data before submit:', {
+//       selectedGames: tournament.selectedGames,
+//       teams: teams,
+//       players: players
+//     });
+
+//     // Validate that we have selected games
+//     if (!tournament.selectedGames || tournament.selectedGames.length === 0) {
+//       throw new Error('Please select at least one game for the tournament');
+//     }
+
+//     // Prepare the data in the exact format expected by your API
+//     const tournamentData = {
+//       tournament: {
+//         name: tournament.name || '',
+//         description: tournament.description || '',
+//         createdAt: new Date().toISOString()
+//       },
+//       teams: teams.map(team => ({
+//         id: team.id || '',
+//         name: team.name || '',
+//         players: (players[team.id] || []).map(player => ({
+//           id: player.id ? player.id.toString() : '',
+//           name: player.name || '',
+//           avatar: player.avatar || '',
+//           avatarName: avatars.find(a => a.emoji === player.avatar)?.name || ''
+//         }))
+//       })),
+//       selectedGames: tournament.selectedGames || []
+//     };
+
+//     console.log('Sending tournament data:', tournamentData);
+
+//     // Make the API call
+//     const response = await fetch('http://localhost:5000/api/tournaments', {
+//       method: 'POST',
+//       headers: {
+//         'accept': 'application/json',
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify(tournamentData)
+//     });
+
+//     if (!response.ok) {
+//       const errorData = await response.json().catch(() => ({}));
+//       console.error('Server error response:', errorData);
+//       throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+//     }
+
+//     const result = await response.json();
+//     console.log('Tournament created successfully:', result);
+    
+//     // Call the parent callback with the result
+//     if (onCreateTournament) {
+//       await onCreateTournament(result);
+//     }
+    
+//     // Close the modal on success
+//     onClose();
+    
+//   } catch (error) {
+//     console.error('Error creating game session:', error);
+//     setErrors({ 
+//       submit: error.message || 'Failed to create game session. Please check your connection and try again.' 
+//     });
+//   } finally {
+//     setIsLoading(false);
+//   }
+// };
+
+const submitTournament = async () => {
+  debugger
+  setIsLoading(true);
+  setErrors({});
+
+  try {
+    // Debug logging to see what we're sending
+    console.log('Tournament data before submit:', {
+      selectedGames: tournament.selectedGames,
+      teams: teams,
+      players: players
+    });
+
+    // Validate that we have selected games
+    if (!tournament.selectedGames || tournament.selectedGames.length === 0) {
+      throw new Error('Please select at least one game for the tournament');
     }
-  };
+
+    // Prepare the data in the exact format expected by your API
+    const tournamentData = {
+      tournament: {
+        name: tournament.name || '',
+        description: tournament.description || '',
+        createdAt: new Date().toISOString()
+      },
+      teams: teams.map(team => ({
+        id: team.id || '',
+        name: team.name || '',
+        players: (players[team.id] || []).map(player => ({
+          id: player.id ? player.id.toString() : '',
+          name: player.name || '',
+          avatar: player.avatar || '',
+          avatarName: avatars.find(a => a.emoji === player.avatar)?.name || ''
+        }))
+      })),
+      selectedGames: tournament.selectedGames || []
+    };
+
+    console.log('Sending tournament data:', tournamentData);
+
+    // Make the API call using axiosClient
+    const result = await axiosClient.post('/tournaments', tournamentData);
+    
+    console.log('Tournament created successfully:', result.data);
+    
+    // Call the parent callback with the result
+    if (onCreateTournament) {
+      await onCreateTournament(result.data);
+    }
+    
+    // Close the modal on success
+    onClose();
+    
+  } catch (error) {
+    console.error('Error creating game session:', error);
+    
+    // Handle axios error response
+    const errorMessage = error.response?.data?.message || 
+                        error.message || 
+                        'Failed to create game session. Please check your connection and try again.';
+    
+    setErrors({ 
+      submit: errorMessage
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -251,7 +518,7 @@ const TournamentModal = ({
               <div>
                 <label className="block text-sm font-semibold mb-2 text-gray-700">Game Session Name *</label>
                 <input
-                  className="w-full border border-gray-300 rounded-md px-4 py-3 text-lg placeholder-gray-400
+                  className="w-full border border-gray-300 rounded-md px-4 py-2 text-lg placeholder-gray-400
                              focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
                   placeholder="Enter game session name"
                   value={tournament.name}
@@ -428,7 +695,7 @@ const TournamentModal = ({
             <div className="text-center">
               <button
                 onClick={addTeam}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 my-3 rounded-lg font-semibold text-lg transition"
+                className="bg-green-600 hover:bg-green-700 text-white px-2 py-2 my-3 rounded-lg font-semibold text-lg transition"
               >
                 + Add New Team
               </button>
@@ -462,61 +729,66 @@ const TournamentModal = ({
                 <p className="text-gray-400 text-sm">Please check your API connection</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {gamesList.map((game) => {
-                  const isSelected = tournament.selectedGames.includes(game._id);
-                  return (
-                    <label
-                      key={game._id || game.id}
-                      className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-lg select-none block ${
-                        isSelected
-                          ? 'border-purple-500 bg-purple-50 shadow-md'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className={`font-semibold text-lg ${isSelected ? 'text-purple-800' : 'text-gray-800'}`}>
-                          {game.name}
-                        </h3>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          value={game._id}
-                          onChange={toggleGameSelection}
-                          className="w-5 h-5 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
-                        />
-                      </div>
-                      
-                      {game.description && (
-                        <p className={`text-sm mb-3 ${isSelected ? 'text-purple-700' : 'text-gray-600'}`}>
-                          {game.description}
-                        </p>
-                      )}
-                      
-                      <div className="flex flex-wrap gap-2">
-                        {game.category && (
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            isSelected 
-                              ? 'bg-purple-200 text-purple-800' 
-                              : 'bg-gray-100 text-gray-700'
-                          }`}>
-                            {game.category}
-                          </span>
-                        )}
-                        {game.difficulty && (
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            isSelected 
-                              ? 'bg-purple-200 text-purple-800' 
-                              : 'bg-gray-100 text-gray-700'
-                          }`}>
-                            {game.difficulty}
-                          </span>
-                        )}
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
+
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {gamesList.map((game) => {
+    // Ensure we're using the correct ID field and that selectedGames is an array
+    const gameId = game._id || game.id;
+    const selectedGames = tournament.selectedGames || [];
+    const isSelected = selectedGames.includes(gameId);
+    
+    return (
+      <label
+        key={gameId}
+        className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-lg select-none block ${
+          isSelected
+            ? 'border-purple-500 bg-purple-50 shadow-md'
+            : 'border-gray-200 hover:border-gray-300'
+        }`}
+      >
+        <div className="flex items-start justify-between mb-2">
+          <h3 className={`font-semibold text-lg ${isSelected ? 'text-purple-800' : 'text-gray-800'}`}>
+            {game.name}
+          </h3>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            value={gameId}
+            onChange={toggleGameSelection}
+            className="w-5 h-5 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
+          />
+        </div>
+        
+        {game.description && (
+          <p className={`text-sm mb-3 ${isSelected ? 'text-purple-700' : 'text-gray-600'}`}>
+            {game.description}
+          </p>
+        )}
+        
+        <div className="flex flex-wrap gap-2">
+          {game.category && (
+            <span className={`text-xs px-2 py-1 rounded-full ${
+              isSelected 
+                ? 'bg-purple-200 text-purple-800' 
+                : 'bg-gray-100 text-gray-700'
+            }`}>
+              {game.category}
+            </span>
+          )}
+          {game.difficulty && (
+            <span className={`text-xs px-2 py-1 rounded-full ${
+              isSelected 
+                ? 'bg-purple-200 text-purple-800' 
+                : 'bg-gray-100 text-gray-700'
+            }`}>
+              {game.difficulty}
+            </span>
+          )}
+        </div>
+      </label>
+    );
+  })}
+</div>
             )}
 
             {errors.games && (
@@ -559,7 +831,7 @@ const TournamentModal = ({
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {tournament.selectedGames.map((gameId) => {
-                    const game = gamesList.find(g => g._id === gameId);
+                    const game = gamesList.find(g => g.id === gameId);
                     return game ? (
                       <div key={gameId} className="bg-white rounded-lg p-3 border border-blue-200">
                         <h4 className="font-semibold text-blue-800">{game.name}</h4>

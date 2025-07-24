@@ -1,6 +1,6 @@
 import { Trophy, Users, Gamepad2, Plus, Edit, Eye, Medal, User, Star } from 'lucide-react';
 
-const PlayerCard = ({ player, teamRank, gameNamesMap }) => {
+const PlayerCard = ({ player, teamRank }) => {
   const getRankIcon = (rank) => {
     switch (rank) {
       case 1:
@@ -14,13 +14,6 @@ const PlayerCard = ({ player, teamRank, gameNamesMap }) => {
     }
   };
 
-  const getPerformanceColor = (rating) => {
-    if (rating >= 4) return 'text-green-600 bg-green-100';
-    if (rating >= 3) return 'text-blue-600 bg-blue-100';
-    if (rating >= 2) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
-  };
-
   return (
     <div className="bg-white rounded-md p-3 border border-gray-200">
       <div className="flex items-center justify-between mb-3">
@@ -28,9 +21,9 @@ const PlayerCard = ({ player, teamRank, gameNamesMap }) => {
           {getRankIcon(teamRank)}
           <div>
             <span className="font-medium text-gray-800">{player.name}</span>
-            {player.animalAvatar && (
+            {player.animal && (
               <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
-                {player.animalAvatar.name}
+                {player.animal.name}
               </span>
             )}
           </div>
@@ -44,12 +37,12 @@ const PlayerCard = ({ player, teamRank, gameNamesMap }) => {
       {/* Player Stats */}
       <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
         <div className="bg-green-50 rounded p-2 text-center">
-          <div className="text-green-800 font-medium">{player.gamesPlayed}</div>
+          <div className="text-green-800 font-medium">{player.gameScores?.length || 0}</div>
           <div className="text-green-600 text-xs">Games</div>
         </div>
         <div className="bg-purple-50 rounded p-2 text-center">
           <div className="text-purple-800 font-medium">
-            {player.gamesPlayed > 0 ? Math.round(player.totalScore / player.gamesPlayed) : 0}
+            {player.gameScores?.length > 0 ? Math.round(player.totalScore / player.gameScores.length) : 0}
           </div>
           <div className="text-purple-600 text-xs">Avg</div>
         </div>
@@ -57,7 +50,7 @@ const PlayerCard = ({ player, teamRank, gameNamesMap }) => {
 
       {/* Game Performance */}
       <div className="space-y-2">
-        {player.gameBreakdown && player.gameBreakdown.map((game, gameIndex) => (
+        {player.gameScores && player.gameScores.map((game, gameIndex) => (
           <div key={game.gameId} className="flex items-center justify-between bg-gray-50 rounded p-2">
             <div className="flex items-center space-x-2">
               <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
@@ -65,20 +58,19 @@ const PlayerCard = ({ player, teamRank, gameNamesMap }) => {
               </div>
               <div>
                 <div className="text-sm font-medium text-gray-800">
-                  {gameNamesMap[game.gameId] || `Game ${gameIndex + 1}`}
+                  {game.gameName || `Game ${gameIndex + 1}`}
                 </div>
                 <div className="text-xs text-gray-500 flex items-center space-x-2">
-                  <span>Rank #{game.gameRank}</span>
-                  {game.performanceRating && (
-                    <span className={`px-1 py-0.5 rounded text-xs ${getPerformanceColor(game.performanceRating)}`}>
-                      {game.performanceRating}★
-                    </span>
+                  <span>Entries: {game.totalEntries}</span>
+                  {game.deductions > 0 && (
+                    <span className="text-red-500">-{game.deductions}</span>
                   )}
                 </div>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm font-semibold text-gray-800">{game.score}</div>
+              <div className="text-sm font-semibold text-gray-800">{game.totalScore}</div>
+              <div className="text-xs text-gray-500">Score</div>
             </div>
           </div>
         ))}
@@ -87,7 +79,7 @@ const PlayerCard = ({ player, teamRank, gameNamesMap }) => {
   );
 };
 
-const LeaderboardCard = ({ team, index, gameNamesMap }) => {
+const LeaderboardCard = ({ team, gameNamesMap }) => {
   const getRankIcon = (rank) => {
     switch (rank) {
       case 1:
@@ -105,10 +97,10 @@ const LeaderboardCard = ({ team, index, gameNamesMap }) => {
     <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center space-x-3">
-          {getRankIcon(team.overallRank)}
+          {getRankIcon(team.rank)}
           <div>
             <h3 className="font-semibold text-gray-800">{team.name}</h3>
-            <p className="text-sm text-gray-600">{team.gamesPlayed} games played</p>
+            <p className="text-sm text-gray-600">{team.players?.length || 0} players</p>
           </div>
         </div>
         <div className="text-right">
@@ -120,14 +112,22 @@ const LeaderboardCard = ({ team, index, gameNamesMap }) => {
       {/* Score Breakdown */}
       <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
         <div className="bg-green-100 rounded-md p-2">
-          <div className="text-green-800 font-medium">{team.totalIndividualPlayerScore}</div>
-          <div className="text-green-600 text-xs">Individual Score</div>
+          <div className="text-green-800 font-medium">{team.playersScore}</div>
+          <div className="text-green-600 text-xs">Players Score</div>
         </div>
         <div className="bg-purple-100 rounded-md p-2">
-          <div className="text-purple-800 font-medium">{team.totalTeamBonusScore}</div>
+          <div className="text-purple-800 font-medium">{team.teamOnlyScore}</div>
           <div className="text-purple-600 text-xs">Team Bonus</div>
         </div>
       </div>
+
+      {/* Deductions Info */}
+      {team.totalDeductions > 0 && (
+        <div className="bg-red-50 rounded-md p-2 mb-4 text-sm">
+          <div className="text-red-800 font-medium">-{team.totalDeductions}</div>
+          <div className="text-red-600 text-xs">Total Deductions</div>
+        </div>
+      )}
 
       {/* Team Players Ranked */}
       <div className="border-t pt-3">
@@ -138,7 +138,7 @@ const LeaderboardCard = ({ team, index, gameNamesMap }) => {
         <div className="space-y-3">
           {team.playersRanked && team.playersRanked.map((player, playerIndex) => (
             <PlayerCard 
-              key={player._id} 
+              key={player.id} 
               player={player} 
               teamRank={playerIndex + 1}
               gameNamesMap={gameNamesMap}
@@ -151,10 +151,10 @@ const LeaderboardCard = ({ team, index, gameNamesMap }) => {
       <div className="border-t pt-3 mt-3">
         <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
           <Gamepad2 className="w-4 h-4 mr-1" />
-          Game Performance
+          Team Game Performance
         </h4>
         <div className="space-y-2">
-          {team.gameBreakdown && team.gameBreakdown.map((game, gameIndex) => (
+          {team.gameScores && team.gameScores.map((game, gameIndex) => (
             <div key={game.gameId} className="flex items-center justify-between bg-gray-50 rounded-md p-2">
               <div className="flex items-center space-x-2">
                 <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
@@ -162,9 +162,14 @@ const LeaderboardCard = ({ team, index, gameNamesMap }) => {
                 </div>
                 <div>
                   <div className="text-sm font-medium text-gray-800">
-                    {gameNamesMap[game.gameId] || `Game ${gameIndex + 1}`}
+                    {game.gameName}
                   </div>
-                  <div className="text-xs text-gray-500">Rank #{game.gameRank}</div>
+                  <div className="text-xs text-gray-500 flex items-center space-x-2">
+                    <span>Entries: {game.totalEntries}</span>
+                    {game.deductions > 0 && (
+                      <span className="text-red-500">Deductions: {game.deductions}</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="text-right">
@@ -179,63 +184,26 @@ const LeaderboardCard = ({ team, index, gameNamesMap }) => {
   );
 };
 
-const Leaderboard = ({ leaderboard, tournamentData }) => {
+const Leaderboard = ({ tournamentData }) => {
   // Create game names mapping from selectedGames
   const gameNamesMap = tournamentData?.selectedGames?.reduce((acc, game) => {
-    acc[game._id] = game.name;
+    acc[game.game_id] = game.name;
     return acc;
   }, {}) || {};
 
-  const getPlayerDetails = (playerId) => {
-    if (!tournamentData?.teams) return null;
-    
-    for (const team of tournamentData.teams) {
-      const player = team.players.find(p => p._id === playerId);
-      if (player) {
-        return { ...player, teamName: team.name };
-      }
-    }
-    return null;
-  };
-
-  const getPlayerRankings = (playerId) => {
-    return tournamentData?.leaderboard?.overallLeaderboard?.playerRankings?.find(
-      p => p.playerId === playerId
-    );
-  };
-
   // Transform the data to include ranked players within each team
   const transformedLeaderboard = () => {
-    const teamLeaderboard = tournamentData?.leaderboard?.overallLeaderboard?.teamRankings || leaderboard;
+    const teams = tournamentData?.teams || [];
     
-    return teamLeaderboard.map(team => {
-      const teamDetails = tournamentData?.teams?.find(t => t._id === team.teamId) || {};
-      
-      // Get player rankings for this team and sort by total score
-      const playersWithRankings = teamDetails.players?.map(player => {
-        const playerRankings = getPlayerRankings(player._id);
-        return {
-          ...player,
-          totalScore: playerRankings?.totalScore || 0,
-          gamesPlayed: playerRankings?.gamesPlayed || 0,
-          gameBreakdown: playerRankings?.gameBreakdown || [],
-          achievements: playerRankings?.achievements || []
-        };
-      }).sort((a, b) => b.totalScore - a.totalScore) || [];
+    return teams.map(team => {
+      // Sort players by total score (descending) and add team rank
+      const playersRanked = [...(team.players || [])].sort((a, b) => b.totalScore - a.totalScore);
 
       return {
-        _id: team.teamId,
-        name: teamDetails.name || `Team ${team.teamId}`,
-        totalScore: team.totalScore,
-        overallRank: team.overallRank,
-        gamesPlayed: team.gamesPlayed,
-        totalIndividualPlayerScore: team.totalIndividualPlayerScore,
-        totalTeamBonusScore: team.totalTeamBonusScore,
-        players: teamDetails.players || [],
-        playersRanked: playersWithRankings,
-        gameBreakdown: team.gameBreakdown
+        ...team,
+        playersRanked: playersRanked
       };
-    });
+    }).sort((a, b) => a.rank - b.rank); // Sort teams by rank
   };
 
   const transformedData = transformedLeaderboard();
@@ -250,7 +218,7 @@ const Leaderboard = ({ leaderboard, tournamentData }) => {
       <div className="space-y-4">
         {transformedData.map((team, index) => (
           <LeaderboardCard 
-            key={team._id} 
+            key={team.id} 
             team={team} 
             index={index} 
             gameNamesMap={gameNamesMap}
@@ -264,11 +232,19 @@ const Leaderboard = ({ leaderboard, tournamentData }) => {
 // Sample usage component with proper tournamentData definition
 const PlayerLeaderboardDashboard = ({ tournamentData }) => {
 
+
   return (
     <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Tournament Dashboard</h1>
         <p className="text-gray-600">Tournament: {tournamentData.name}</p>
+        <div className="mt-2 text-sm text-gray-500">
+          Status: <span className={`px-2 py-1 rounded text-xs ${
+            tournamentData.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+          }`}>
+            {tournamentData.status}
+          </span>
+        </div>
       </div>
 
       <Leaderboard 

@@ -2,13 +2,13 @@
 import React from 'react';
 
 const StatsCards = ({ stats }) => {
-  const { totalGames, totalPlayers, highestScore, activeGames } = stats;
+  const { totalGames, highestTeamScore, highestIndividualScore, totalTournaments } = stats;
 
   const cards = [
     { value: totalGames, label: "Total Games" },
-    { value: totalPlayers, label: "Total Players" },
-    { value: highestScore, label: "Highest Score" },
-    { value: activeGames, label: "Active Games" }
+    { value: totalTournaments, label: "Total Game Sessions" },
+    { value: highestTeamScore, label: "Highest Team Score" },
+    { value: highestIndividualScore, label: "Highest Player Score" }
   ];
 
   return (

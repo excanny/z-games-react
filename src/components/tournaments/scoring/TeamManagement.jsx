@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Users, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { ToastContainer, toast } from 'react-toastify';
 
 const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tournamentId }) => {
   const [newTeamName, setNewTeamName] = useState('');
@@ -7,6 +8,11 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
   const [editTeamName, setEditTeamName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+    //Notification functions
+    const teamAddedNotification = () => toast('Team added successfully!');
+    const teamUpdatedNotification = () => toast('Team updated successfully!');
+    const teamRemovedNotification = () => toast('Team removed successfully!');
+    
   const handleAddTeam = async () => {
     if (!newTeamName.trim()) return;
 
@@ -24,9 +30,10 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
 
       if (response.ok) {
         const result = await response.json();
-        
-        // Debug: Log the API response to see its structure
-        console.log('API Response:', result);
+
+        //Alert
+
+        teamAddedNotification();
         
         // Handle case where API returns an array of all teams
         if (Array.isArray(result)) {
@@ -35,7 +42,6 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
                           result[result.length - 1]; // fallback to last team
           
           if (newTeam) {
-            console.log('Found new team:', newTeam);
             onAddTeam(newTeam);
           } else {
             console.error('Could not find the newly created team in the response');
@@ -46,7 +52,8 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
           const newTeam = {
             ...(result.team || result.data || result),
             _id: result._id || result.id || Date.now().toString(),
-            name: result.teamName || newTeamName.trim(), // Use teamName from API or fallback to input
+            id: result.id || result._id || Date.now().toString(), // Support both id formats
+            name: result.teamName || newTeamName.trim(),
             players: result.players || [],
             totalScore: result.totalScore || 0,
             isActive: result.isActive !== undefined ? result.isActive : true,
@@ -55,7 +62,6 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
             __v: result.__v || 0
           };
           
-          console.log('Processed team object:', newTeam);
           onAddTeam(newTeam);
         }
         
@@ -63,18 +69,20 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
       } else {
         const errorData = await response.json();
         console.error('Failed to add team:', errorData);
-        // You might want to show an error message to the user
+        toast.error('Failed to add team. Please try again.');
       }
     } catch (error) {
       console.error('Error adding team:', error);
-      // You might want to show an error message to the user
+      toast.error('Error adding team. Please check your connection.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleEditTeam = (team) => {
-    setEditingTeam(team._id);
+    console.log('Editing team:', team.id || team._id); // Debug log
+    const teamId = team.id || team._id;
+    setEditingTeam(teamId);
     setEditTeamName(team.name);
   };
 
@@ -83,7 +91,6 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
 
     setIsLoading(true);
     try {
-      // Assuming you have an update team endpoint
       const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams/${teamId}`, {
         method: 'PUT',
         headers: {
@@ -95,15 +102,28 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
       });
 
       if (response.ok) {
-        const updatedTeam = await response.json();
+        // Create the updated team object with the new name
+        const updatedTeam = {
+          name: editTeamName.trim()
+        };
+        
+        // Call onUpdateTeam with teamId and the updated data
         onUpdateTeam(teamId, updatedTeam);
+        
+        // Show success notification
+        teamUpdatedNotification();
+        
+        // Reset editing state
         setEditingTeam(null);
         setEditTeamName('');
       } else {
-        console.error('Failed to update team');
+        const errorData = await response.json();
+        console.error('Failed to update team:', errorData);
+        toast.error('Failed to update team. Please try again.');
       }
     } catch (error) {
       console.error('Error updating team:', error);
+      toast.error('Error updating team. Please check your connection.');
     } finally {
       setIsLoading(false);
     }
@@ -114,18 +134,21 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
 
     setIsLoading(true);
     try {
-      // Assuming you have a remove team endpoint
       const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams/${teamId}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
         onRemoveTeam(teamId);
+        teamRemovedNotification();
       } else {
-        console.error('Failed to remove team');
+        const errorData = await response.json();
+        console.error('Failed to remove team:', errorData);
+        toast.error('Failed to remove team. Please try again.');
       }
     } catch (error) {
       console.error('Error removing team:', error);
+      toast.error('Error removing team. Please check your connection.');
     } finally {
       setIsLoading(false);
     }
@@ -174,15 +197,15 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
         ) : (
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {teams.map((team, index) => (
-              <div key={team._id} className="bg-white/90 rounded-xl p-4 border border-purple-200/50 shadow-sm hover:shadow-md transition-shadow duration-200">
-                {editingTeam === team._id ? (
+              <div key={team.id || team._id || `team-${index}`} className="bg-white/90 rounded-xl p-4 border border-purple-200/50 shadow-sm hover:shadow-md transition-shadow duration-200">
+                {editingTeam === (team.id || team._id) ? (
                   <div className="flex items-center gap-3 flex-1">
                     <div className="flex-1">
                       <input
                         type="text"
                         value={editTeamName}
                         onChange={(e) => setEditTeamName(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSaveTeam(team._id)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSaveTeam(team.id || team._id)}
                         disabled={isLoading}
                         className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 font-medium"
                         placeholder="Team name..."
@@ -190,7 +213,7 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleSaveTeam(team._id)}
+                        onClick={() => handleSaveTeam(team.id || team._id)}
                         disabled={isLoading || !editTeamName.trim()}
                         className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 disabled:bg-gray-100 disabled:text-gray-400 transition-colors duration-200"
                         title="Save changes"
@@ -241,7 +264,7 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleRemoveTeam(team._id)}
+                        onClick={() => handleRemoveTeam(team.id || team._id)}
                         disabled={isLoading}
                         className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 disabled:bg-gray-100 disabled:text-gray-400 transition-colors duration-200"
                         title="Remove team"
@@ -263,6 +286,22 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
           Processing...
         </div>
       )}
+
+       {/* Toast Container with responsive positioning */}
+            <ToastContainer 
+              position="top-right"
+              autoClose={3000}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              className="!mt-16 sm:!mt-4"
+              toastClassName="!text-sm sm:!text-base"
+            />
+
     </div>
   );
 };

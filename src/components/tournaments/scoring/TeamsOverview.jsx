@@ -3,22 +3,30 @@ import { Trophy, Users, Gamepad2, Plus, Edit, Eye, Medal, User } from 'lucide-re
 // Teams Overview Component
 const TeamsOverview = ({ tournamentData }) => {
   const teams = tournamentData?.teams || [];
-  const playerRankings = tournamentData?.leaderboard?.overallLeaderboard?.playerRankings || [];
-  const teamRankings = tournamentData?.leaderboard?.overallLeaderboard?.teamRankings || [];
   
-  const getPlayerScoreCount = (playerId) => {
-    const player = playerRankings.find(p => p.playerId === playerId);
-    return player?.gameBreakdown?.length || 0;
+  const getPlayerScoreCount = (player) => {
+    return player?.gameScores?.length || 0;
   };
 
-  const getTeamTotalScore = (teamId) => {
-    const team = teamRankings.find(t => t.teamId === teamId);
+  const getTeamTotalScore = (team) => {
     return team?.totalScore || 0;
   };
 
-  const getTeamRank = (teamId) => {
-    const team = teamRankings.find(t => t.teamId === teamId);
-    return team?.overallRank || 0;
+  const getTeamRank = (team) => {
+    return team?.rank || 0;
+  };
+
+  const getRankIcon = (rank) => {
+    switch (rank) {
+      case 1:
+        return <Trophy className="w-4 h-4 text-yellow-500" />;
+      case 2:
+        return <Medal className="w-4 h-4 text-gray-400" />;
+      case 3:
+        return <Medal className="w-4 h-4 text-orange-600" />;
+      default:
+        return <div className="w-4 h-4 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">{rank}</div>;
+    }
   };
 
   return (
@@ -29,37 +37,54 @@ const TeamsOverview = ({ tournamentData }) => {
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {teams.map(team => {
-          const teamRank = getTeamRank(team._id);
-          const teamScore = getTeamTotalScore(team._id);
+          const teamRank = getTeamRank(team);
+          const teamScore = getTeamTotalScore(team);
           
           return (
-            <div key={team._id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div key={team.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-gray-800">{team.name}</h3>
                 {teamRank > 0 && (
                   <div className="flex items-center space-x-1">
-                    {teamRank === 1 && <Trophy className="w-4 h-4 text-yellow-500" />}
-                    {teamRank === 2 && <Medal className="w-4 h-4 text-gray-400" />}
-                    {teamRank === 3 && <Medal className="w-4 h-4 text-orange-600" />}
+                    {getRankIcon(teamRank)}
                     <span className="text-sm font-medium text-gray-600">#{teamRank}</span>
                   </div>
                 )}
               </div>
               
+              {/* Team Score Breakdown */}
+              <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+                <div className="bg-green-50 rounded p-2 text-center">
+                  <div className="text-green-800 font-medium">{team.playersScore || 0}</div>
+                  <div className="text-green-600 text-xs">Players Score</div>
+                </div>
+                <div className="bg-purple-50 rounded p-2 text-center">
+                  <div className="text-purple-800 font-medium">{team.teamOnlyScore || 0}</div>
+                  <div className="text-purple-600 text-xs">Team Bonus</div>
+                </div>
+              </div>
+
+              {/* Deductions if any */}
+              {team.totalDeductions > 0 && (
+                <div className="bg-red-50 rounded p-2 mb-3 text-sm text-center">
+                  <div className="text-red-800 font-medium">-{team.totalDeductions}</div>
+                  <div className="text-red-600 text-xs">Deductions</div>
+                </div>
+              )}
+              
               <div className="space-y-2">
-                {team.players.map((player) => {
-                  const scoreCount = getPlayerScoreCount(player._id);
-                  const playerRanking = playerRankings.find(p => p.playerId === player._id);
-                  const playerScore = playerRanking?.totalScore || 0;
+                {team.players?.map((player) => {
+                  const scoreCount = getPlayerScoreCount(player);
+                  const playerScore = player?.totalScore || 0;
                   
                   return (
-                    <div key={player._id} className="flex justify-between items-center bg-white p-2 rounded border">
+                    <div key={player.id} className="flex justify-between items-center bg-white p-2 rounded border">
                       <div className="flex items-center space-x-2">
                         <User className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-700">{player.name}</span>
-                        {player.animalAvatar && (
+                        {player.animal && (
                           <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">
-                            {player.animalAvatar.name}
+                            {player.animal.name}
                           </span>
                         )}
                       </div>
@@ -77,6 +102,10 @@ const TeamsOverview = ({ tournamentData }) => {
                   <span className="text-sm font-medium text-gray-700">Team Total:</span>
                   <span className="text-lg font-bold text-blue-600">{teamScore} points</span>
                 </div>
+                <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
+                  <span>Games Played:</span>
+                  <span>{team.gameScores?.length || 0}</span>
+                </div>
               </div>
             </div>
           );
@@ -85,11 +114,34 @@ const TeamsOverview = ({ tournamentData }) => {
       {teams.length === 0 && (
         <div className="text-center py-8">
           <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No teams created for this game session</p>
+          <p className="text-gray-500">No teams created for this tournament</p>
         </div>
       )}
     </div>
   );
 };
 
-export default TeamsOverview;
+// Sample usage component with the actual API data structure
+const TeamsOverviewDashboard = ({tournamentData}) => {
+
+
+  return (
+    <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">Tournament Teams Overview</h1>
+        <p className="text-gray-600">Tournament: {tournamentData.name}</p>
+        <div className="mt-2 text-sm text-gray-500">
+          Status: <span className={`px-2 py-1 rounded text-xs ${
+            tournamentData.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+          }`}>
+            {tournamentData.status}
+          </span>
+        </div>
+      </div>
+
+      <TeamsOverview tournamentData={tournamentData} />
+    </div>
+  );
+};
+
+export default TeamsOverviewDashboard;

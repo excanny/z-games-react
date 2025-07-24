@@ -1,5 +1,4 @@
 const GameSelector = ({ games, selectedGame, onGameChange }) => {
-  console.log('Games:', games); // Log the games array
 
   return (
     <div>
@@ -13,7 +12,7 @@ const GameSelector = ({ games, selectedGame, onGameChange }) => {
       >
         <option value="">Choose a game...</option>
         {games.map(game => (
-          <option key={game._id} value={game._id}>
+          <option key={game.game_id} value={game.game_id}>
             {game.name}
           </option>
         ))}

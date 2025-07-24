@@ -1,32 +1,39 @@
 import { useState } from 'react';
 import { User, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { ToastContainer, toast } from 'react-toastify';
 
 // Animal avatars with emojis
 const ANIMAL_AVATARS = [
-  { id: 'lion', emoji: '🦁', name: 'Lion' },
-  { id: 'tiger', emoji: '🐅', name: 'Tiger' },
-  { id: 'bear', emoji: '🐻', name: 'Bear' },
-  { id: 'wolf', emoji: '🐺', name: 'Wolf' },
-  { id: 'fox', emoji: '🦊', name: 'Fox' },
-  { id: 'cat', emoji: '🐱', name: 'Cat' },
-  { id: 'dog', emoji: '🐶', name: 'Dog' },
-  { id: 'rabbit', emoji: '🐰', name: 'Rabbit' },
-  { id: 'panda', emoji: '🐼', name: 'Panda' },
-  { id: 'koala', emoji: '🐨', name: 'Koala' },
-  { id: 'monkey', emoji: '🐵', name: 'Monkey' },
-  { id: 'elephant', emoji: '🐘', name: 'Elephant' },
-  { id: 'giraffe', emoji: '🦒', name: 'Giraffe' },
-  { id: 'zebra', emoji: '🦓', name: 'Zebra' },
-  { id: 'horse', emoji: '🐴', name: 'Horse' },
-  { id: 'unicorn', emoji: '🦄', name: 'Unicorn' },
-  { id: 'dragon', emoji: '🐉', name: 'Dragon' },
-  { id: 'penguin', emoji: '🐧', name: 'Penguin' },
-  { id: 'eagle', emoji: '🦅', name: 'Eagle' },
-  { id: 'owl', emoji: '🦉', name: 'Owl' },
-  { id: 'dolphin', emoji: '🐬', name: 'Dolphin' },
-  { id: 'shark', emoji: '🦈', name: 'Shark' },
-  { id: 'octopus', emoji: '🐙', name: 'Octopus' },
-  { id: 'turtle', emoji: '🐢', name: 'Turtle' }
+  { id: 'Lion', emoji: '🦁', name: 'Lion' },
+  { id: 'Tiger', emoji: '🐯', name: 'Tiger' },
+  { id: 'Bear', emoji: '🐻', name: 'Bear' },
+  { id: 'Wolf', emoji: '🐺', name: 'Wolf' },
+  { id: 'Fox', emoji: '🦊', name: 'Fox' },
+  { id: 'Cat', emoji: '🐱', name: 'Cat' },
+  { id: 'Dog', emoji: '🐶', name: 'Dog' },
+  { id: 'Rabbit', emoji: '🐰', name: 'Rabbit' },
+  { id: 'Monkey', emoji: '🐵', name: 'Monkey' },
+  { id: 'Horse', emoji: '🐴', name: 'Horse' },
+  { id: 'Turtle', emoji: '🐢', name: 'Turtle' },
+  { id: 'Eagle', emoji: '🦅', name: 'Eagle' },
+  { id: 'Shark', emoji: '🦈', name: 'Shark' },
+  { id: 'Frog', emoji: '🐸', name: 'Frog' },
+  { id: 'Chameleon', emoji: '🦎', name: 'Chameleon' },
+  { id: 'Whale', emoji: '🐋', name: 'Whale' },
+  { id: 'Bison', emoji: '🦬', name: 'Bison' },
+  { id: 'Moose', emoji: '🫎', name: 'Moose' },
+  { id: 'Goose', emoji: '🪿', name: 'Goose' },
+  { id: 'Beaver', emoji: '🦫', name: 'Beaver' },
+  { id: 'Human', emoji: '👤', name: 'Human' },
+  { id: 'Panda', emoji: '🐼', name: 'Panda' },
+  { id: 'Koala', emoji: '🐨', name: 'Koala' },
+  { id: 'Elephant', emoji: '🐘', name: 'Elephant' },
+  { id: 'Giraffe', emoji: '🦒', name: 'Giraffe' },
+  { id: 'Zebra', emoji: '🦓', name: 'Zebra' },
+  { id: 'Unicorn', emoji: '🦄', name: 'Unicorn' },
+  { id: 'Dragon', emoji: '🐉', name: 'Dragon' },
+  { id: 'Penguin', emoji: '🐧', name: 'Penguin' },
+  { id: 'Octopus', emoji: '🐙', name: 'Octopus' }
 ];
 
 // Player Management Component
@@ -40,11 +47,17 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const selectedTeam = teams.find(team => team._id === selectedTeamId);
+  const selectedTeam = teams.find(team => team.id === selectedTeamId);
 
   // Get used avatars in the selected team to avoid duplicates
   const usedAvatars = selectedTeam ? selectedTeam.players.map(p => p.avatar) : [];
   const availableAvatars = ANIMAL_AVATARS.filter(avatar => !usedAvatars.includes(avatar.id));
+
+  // Notification functions
+  const playerAddedNotification = () => toast.success('Player added successfully!');
+  const playerUpdatedNotification = () => toast.success('Player updated successfully!');
+  const playerRemovedNotification = () => toast.success('Player removed successfully!');
+  const errorNotification = (message) => toast.error(message);
 
   // API call to add player
   const addPlayerToAPI = async (teamId, playerData) => {
@@ -132,16 +145,21 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
         
         // Update local state using the callback
         onAddPlayer(selectedTeamId, {
-          _id: apiResult._id || Date.now().toString(),
+          id: apiResult.id || Date.now().toString(),
           name: newPlayer.name,
           avatar: newPlayer.avatar
         });
+
+        // Show success notification
+        playerAddedNotification();
 
         // Reset form
         setNewPlayerName('');
         setNewPlayerAvatar('');
       } catch (error) {
-        setError('Failed to add player. Please try again.');
+        const errorMessage = 'Failed to add player. Please try again.';
+        setError(errorMessage);
+        errorNotification(errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -149,7 +167,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
   };
 
   const handleEditPlayer = (player) => {
-    setEditingPlayer(player._id);
+    setEditingPlayer(player.id);
     setEditPlayerName(player.name);
     setEditPlayerAvatar(player.avatar);
   };
@@ -171,12 +189,17 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
         // Update local state using the callback
         onUpdatePlayer(selectedTeamId, playerId, updatedData);
 
+        // Show success notification
+        playerUpdatedNotification();
+
         // Reset editing state
         setEditingPlayer(null);
         setEditPlayerName('');
         setEditPlayerAvatar('');
       } catch (error) {
-        setError('Failed to update player. Please try again.');
+        const errorMessage = 'Failed to update player. Please try again.';
+        setError(errorMessage);
+        errorNotification(errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -193,8 +216,13 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
       
       // Update local state using the callback
       onRemovePlayer(teamId, playerId);
+
+      // Show success notification
+      playerRemovedNotification();
     } catch (error) {
-      setError('Failed to remove player. Please try again.');
+      const errorMessage = 'Failed to remove player. Please try again.';
+      setError(errorMessage);
+      errorNotification(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -213,7 +241,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
   // Get available avatars for editing (include current avatar)
   const getAvailableAvatarsForEdit = (currentAvatar) => {
     const otherUsedAvatars = selectedTeam ? selectedTeam.players
-      .filter(p => p._id !== editingPlayer)
+      .filter(p => p.id !== editingPlayer)
       .map(p => p.avatar) : [];
     return ANIMAL_AVATARS.filter(avatar => 
       !otherUsedAvatars.includes(avatar.id) || avatar.id === currentAvatar
@@ -245,7 +273,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
         >
           <option value="">Choose a team...</option>
           {teams.map((team) => (
-            <option key={team._id} value={team._id}>
+            <option key={team.id} value={team.id}>
               {team.name}
             </option>
           ))}
@@ -307,8 +335,8 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
           {selectedTeam.players.map((player) => {
             const avatar = getAvatarById(player.avatar);
             return (
-              <div key={player._id} className="bg-white/80 rounded-lg p-3 border border-orange-200/50">
-                {editingPlayer === player._id ? (
+              <div key={player.id} className="bg-white/80 rounded-lg p-3 border border-orange-200/50">
+                {editingPlayer === player.id ? (
                   <div className="space-y-2">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input
@@ -333,9 +361,10 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
                     </div>
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => handleSavePlayer(player._id)}
-                        disabled={isLoading}
+                        onClick={() => handleSavePlayer(player.id)}
+                        disabled={isLoading || !editPlayerName.trim() || !editPlayerAvatar}
                         className="p-1 text-green-600 hover:text-green-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title="Save changes"
                       >
                         {isLoading ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
@@ -347,6 +376,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
                         onClick={handleCancelEdit}
                         disabled={isLoading}
                         className="p-1 text-gray-600 hover:text-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title="Cancel edit"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -366,15 +396,21 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
                         onClick={() => handleEditPlayer(player)}
                         disabled={isLoading}
                         className="p-1 text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title="Edit player"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleRemovePlayer(selectedTeamId, player._id)}
+                        onClick={() => handleRemovePlayer(selectedTeamId, player.id)}
                         disabled={isLoading}
                         className="p-1 text-red-600 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title="Remove player"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {isLoading ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -384,6 +420,21 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
           })}
         </div>
       )}
+
+      {/* Toast Container with responsive positioning */}
+      <ToastContainer 
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        className="!mt-16 sm:!mt-4"
+        toastClassName="!text-sm sm:!text-base"
+      />
     </div>
   );
 };
