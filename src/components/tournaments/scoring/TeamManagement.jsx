@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Users, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
+import config from '../../../config'; // Adjust the import path as necessary
 
 const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tournamentId }) => {
   const [newTeamName, setNewTeamName] = useState('');
@@ -18,7 +19,7 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
 
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/add-team`, {
+      const response = await fetch(`${config.baseUrl}/api/tournaments/${tournamentId}/add-team`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -91,7 +92,7 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
 
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams/${teamId}`, {
+      const response = await fetch(`${config.baseUrl}/api/tournaments/${tournamentId}/teams/${teamId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +135,7 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
 
     setIsLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams/${teamId}`, {
+      const response = await fetch(`${config.baseUrl}/api/tournaments/${tournamentId}/teams/${teamId}`, {
         method: 'DELETE',
       });
 
@@ -144,7 +145,7 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
       } else {
         const errorData = await response.json();
         console.error('Failed to remove team:', errorData);
-        toast.error('Failed to remove team. Please try again.');
+        toast.error(`Failed to remove team ${errorData.error || ''}. Please try again.`);
       }
     } catch (error) {
       console.error('Error removing team:', error);

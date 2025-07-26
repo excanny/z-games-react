@@ -19,6 +19,7 @@ import { useParams } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import ZGamesLogo from '../../../assets/Z Games logo with illustration.png';
 import axiosClient from "../../../utils/axiosClient"; 
+import config from '../../../config'; // Adjust the import path as necessary
 
 const TournamentScoring = () => {
   const { tournamentId } = useParams();
@@ -32,6 +33,8 @@ const TournamentScoring = () => {
   const [selectedTeam, setSelectedTeam] = useState('');
   const [selectedPlayer, setSelectedPlayer] = useState('');
   const [scoreValue, setScoreValue] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
 
   // Timer states
   const [timerTime, setTimerTime] = useState(0); // in seconds
@@ -91,6 +94,8 @@ const TournamentScoring = () => {
       ...prevData,
       teams: [...prevData.teams, newTeam]
     }));
+
+     setTimeout(fetchTournamentData, 2000);
   };
 
   const handleUpdateTeam = (teamId, updatedTeam) => {
@@ -100,6 +105,9 @@ const TournamentScoring = () => {
         team.id === teamId ? { ...team, ...updatedTeam } : team
       )
     }));
+
+    setTimeout(fetchTournamentData, 2000); // Fetch updated data after a short delay
+    // This delay allows the UI to update before fetching new data
   };
 
   const handleRemoveTeam = (teamId) => {
@@ -107,6 +115,8 @@ const TournamentScoring = () => {
       ...prevData,
       teams: prevData.teams.filter(team => team.id !== teamId)
     }));
+
+     setTimeout(fetchTournamentData, 2000);
   };
 
   // Handler to add a player to a team
@@ -162,7 +172,7 @@ const TournamentScoring = () => {
   const fetchTournamentData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}`);
+      const response = await fetch(`${config.baseUrl}/api/tournaments/${tournamentId}`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -224,6 +234,8 @@ const TournamentScoring = () => {
   };
 
 const handleScoreSubmit = async () => {
+
+   setIsSubmitting(true);
 
   if (!selectedGame || scoreValue === '' || scoreValue === null) {
     alert('Please select a game and enter a score');
@@ -322,7 +334,7 @@ const handleScoreSubmit = async () => {
         }
       }
 
-      setTimeout(fetchTournamentData, 3000);
+      setTimeout(fetchTournamentData, 2000);
 
     } else {
       console.error('Error submitting score:', result);
@@ -331,6 +343,11 @@ const handleScoreSubmit = async () => {
   } catch (error) {
     console.error('Request failed:', error);
     alert('Failed to connect to server. Please try again.');
+  } finally {
+    // Reset the loading state after submission (you can add a delay if needed)
+    setTimeout(() => {
+      setIsSubmitting(false);
+    }, 500); // Optional delay to show the animation briefly
   }
 };
 
@@ -575,15 +592,30 @@ const handleScoreSubmit = async () => {
             scoreValue={scoreValue}
             onScoreChange={setScoreValue}
           />
-
+{/* 
           <button
             onClick={handleScoreSubmit}
             disabled={!selectedGame || scoreValue === '' || (scoringMode === 'team' && !selectedTeam) || (scoringMode === 'player' && !selectedPlayer)}
             className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none text-sm sm:text-base"
           >
             {scoreValue && parseInt(scoreValue) < 0 ? 'Deduct Points' : 'Award Points'}
+          </button> */}
+
+          <button
+            onClick={handleScoreSubmit}
+            disabled={!selectedGame || scoreValue === '' || (scoringMode === 'team' && !selectedTeam) || (scoringMode === 'player' && !selectedPlayer) || isSubmitting}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-6 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none text-sm sm:text-base flex items-center justify-center gap-2"
+          >
+            {isSubmitting && (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            )}
+            {isSubmitting 
+              ? 'Processing...' 
+              : (scoreValue && parseInt(scoreValue) < 0 ? 'Deduct Points' : 'Award Points')
+            }
           </button>
         </div>
+
         {/* Team Management */}
             <TeamManagement 
               teams={tournamentData.teams}
@@ -604,7 +636,7 @@ const handleScoreSubmit = async () => {
       </div>
 
       {/* Teams Leaderboard */}
-      <div className="space-y-6">
+      {/* <div className="space-y-6">
         <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-2xl p-6 border border-green-200/60 space-y-6">
           <div className="space-y-3 sm:space-y-4 max-h-96 sm:max-h-[50rem] lg:max-h-[54rem] overflow-y-auto">
             {tournamentData?.teams
@@ -625,7 +657,58 @@ const handleScoreSubmit = async () => {
               ))}
           </div>
         </div>
-      </div>
+      </div> */}
+
+      {/* Teams Leaderboard */}
+<div className="space-y-6">
+  <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-2xl p-6 border border-green-200/60 space-y-6">
+    <div className="space-y-3 sm:space-y-4 max-h-96 sm:max-h-[50rem] lg:max-h-[54rem] overflow-y-auto">
+      {tournamentData?.teams && tournamentData.teams.length > 0 ? (
+        tournamentData.teams
+          .sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0))
+          .map((team, index) => (
+            <div
+              key={team.id}
+              className="bg-white/80 rounded-xl p-4 border border-green-200/50 hover:shadow-md transition-all duration-200"
+            >
+              <TeamCard
+                team={team}
+                index={index}
+                games={tournamentData.selectedGames}
+                getTeamScores={team.totalScore || 0}
+                leaderboard={tournamentData.leaderboard}
+              />
+            </div>
+          ))
+      ) : (
+        <div className="bg-white/60 rounded-xl p-8 border border-green-200/50 text-center">
+          <div className="space-y-3">
+            <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+              <svg
+                className="w-8 h-8 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">No Teams Yet</h3>
+            <p className="text-gray-600 max-w-sm mx-auto">
+              Teams will appear here once they're added to the tournament. Get started by creating your first team!
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
+      
     </div>
 
   </div>

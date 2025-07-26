@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { User, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { ToastContainer, toast } from 'react-toastify';
+import config from '../../../config';
 
 // Animal avatars with emojis
 const ANIMAL_AVATARS = [
@@ -62,7 +63,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
   // API call to add player
   const addPlayerToAPI = async (teamId, playerData) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams/${teamId}/players`, {
+      const response = await fetch(`${config.baseUrl}/api/tournaments/${tournamentId}/teams/${teamId}/players`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,7 +89,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
   // API call to update player
   const updatePlayerInAPI = async (teamId, playerId, playerData) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams/${teamId}/players/${playerId}`, {
+      const response = await fetch(`${config.baseUrl}/api/tournaments/${tournamentId}/teams/${teamId}/players/${playerId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +115,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
   // API call to remove player
   const removePlayerFromAPI = async (teamId, playerId) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}/teams/${teamId}/players/${playerId}`, {
+      const response = await fetch(`${config.baseUrl}/api/tournaments/${tournamentId}/teams/${teamId}/players/${playerId}`, {
         method: 'DELETE',
       });
 

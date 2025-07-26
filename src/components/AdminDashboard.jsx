@@ -8,6 +8,7 @@ import AdminHeader from './AdminHeader';
 import StatsCards from './StatsCards';
 import GameModal from './GameModal';
 import TournamentModal from './TournamentModal';
+import config from "../config";
 
 const AdminDashboard = () => {
     const { user, isAuthenticated, isAdmin, logout } = useAuth();
@@ -119,7 +120,7 @@ const AdminDashboard = () => {
 
     const fetchTournaments = async () => {
         try {
-          const response = await fetch('http://localhost:5000/api/tournaments');
+          const response = await fetch(`${config.baseUrl}/api/tournaments`);
           const tournaments = await response.json();
        
           setTournamentsList(tournaments.data);
