@@ -50,7 +50,6 @@ const ProtectedRoute = ({ children }) => {
 
         // Check if JWT token is expired
         if (isTokenExpired(token)) {
-          console.log('JWT token is expired');
           localStorage.removeItem('token');
           setIsAuthenticated(false);
           setIsLoading(false);
@@ -60,7 +59,6 @@ const ProtectedRoute = ({ children }) => {
         // Extract user info from JWT
         const userInfo = getUserFromToken(token);
         if (!userInfo) {
-          console.log('Invalid JWT token structure');
           localStorage.removeItem('token');
           setIsAuthenticated(false);
           setIsLoading(false);

@@ -23,12 +23,10 @@ const AdminLogin = () => {
                     navigate(from, { replace: true });
                 } catch (error) {
                     // Token is invalid on server, remove it
-                    console.log('Token verification failed:', error);
                     setAuthToken(null);
                 }
             } else if (token && isTokenExpired(token)) {
-                // Token exists but is expired
-                console.log('JWT token is expired, removing from storage');
+                // Token exists but is expired;
                 setAuthToken(null);
             }
         };
@@ -51,12 +49,9 @@ const AdminLogin = () => {
         setError("");
         setLoading(true);
 
-        console.log("Form data being sent:", formData); // Debug log
-
         try {
             const response = await api.post("/auth/login", formData);
-            console.log("Login successful:", response.data);
-
+        
             // Extract JWT token from response
             const token = response.data.token || response.data.data?.token || response.data.accessToken;
             
@@ -64,8 +59,7 @@ const AdminLogin = () => {
                 // Validate JWT structure
                 const userInfo = getUserFromToken(token);
                 if (userInfo) {
-                    console.log("User info from JWT:", userInfo);
-                    
+               
                     // Save token using utility function
                     setAuthToken(token);
                     

@@ -81,7 +81,6 @@ const TeamManagement = ({ teams, onAddTeam, onRemoveTeam, onUpdateTeam, tourname
   };
 
   const handleEditTeam = (team) => {
-    console.log('Editing team:', team.id || team._id); // Debug log
     const teamId = team.id || team._id;
     setEditingTeam(teamId);
     setEditTeamName(team.name);

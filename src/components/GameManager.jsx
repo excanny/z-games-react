@@ -14,9 +14,6 @@ const GameManager = forwardRef(({ onCreateGame, games: propGames }, ref) => {
   const observer = useRef();
   const ITEMS_PER_PAGE = 12; // Adjust based on your needs
 
-  console.log('GameManager - Received propGames:', propGames); // Debug log
-  console.log('GameManager - Current games state:', games); // Debug log
-
   // Ref callback for the last game element to trigger infinite scroll
   const lastGameElementRef = useCallback(node => {
     if (loading) return;
@@ -42,11 +39,6 @@ const GameManager = forwardRef(({ onCreateGame, games: propGames }, ref) => {
       fetchGames(page, false);
     }
   }, [page, propGames]);
-
-  // Add useEffect to log when games change
-  useEffect(() => {
-    console.log('GameManager - Games updated:', games);
-  }, [games]);
 
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
@@ -112,8 +104,6 @@ const GameManager = forwardRef(({ onCreateGame, games: propGames }, ref) => {
       } else {
         gamesData = [];
       }
-      
-      console.log('GameManager - Fetched games:', gamesData); // Debug log
       
       if (reset) {
         setLocalGames(gamesData);
@@ -262,8 +252,7 @@ const GameManager = forwardRef(({ onCreateGame, games: propGames }, ref) => {
             onClick={isDeactivated ? handleDeactivatedClick : (e) => {
               e.preventDefault();
               e.stopPropagation();
-              // Handle game selection for active games
-              console.log('Game clicked:', game.name);
+             
             }}
             disabled={isDeactivated}
             tabIndex={isDeactivated ? -1 : 0}

@@ -226,18 +226,12 @@ const toggleGameSelection = (event) => {
 };
 
 const submitTournament = async () => {
-  debugger
+
   setIsLoading(true);
   setErrors({});
 
   try {
-    // Debug logging to see what we're sending
-    console.log('Tournament data before submit:', {
-      selectedGames: tournament.selectedGames,
-      teams: teams,
-      players: players
-    });
-
+   
     // Validate that we have selected games
     if (!tournament.selectedGames || tournament.selectedGames.length === 0) {
       throw new Error('Please select at least one game for the tournament');
@@ -263,12 +257,9 @@ const submitTournament = async () => {
       selectedGames: tournament.selectedGames || []
     };
 
-    console.log('Sending tournament data:', tournamentData);
-
+ 
     // Make the API call using axiosClient
     const result = await axiosClient.post('/tournaments', tournamentData);
-    
-    console.log('Tournament created successfully:', result.data);
     
     // Call the parent callback with the result
     if (onCreateTournament) {

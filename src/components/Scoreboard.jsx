@@ -38,33 +38,28 @@ const Scoreboard = () => {
 
   // Fetch tournament data using axiosClient
   const fetchTournamentData = async () => {
-    console.log('🔄 fetchTournamentData called');
+
     try {
       setError(null);
-      console.log('🔄 Making API request to /tournaments/leaderboard');
+     
       const response = await axiosClient.get('/tournaments/leaderboard');
-      console.log('🔄 API response received:', response?.data);
-
+    
       if (response?.data?.success) {
-        console.log('🔄 Setting tournament data:', response?.data?.data);
+       
         setTournamentData(response?.data?.data);
         
         // Extract and store the active tournament ID
         if (response?.data?.data?.tournamentId) {
-          console.log('🔄 Setting active tournament ID:', response?.data?.data?.tournamentId);
           setActiveTournamentId(response?.data?.data?.tournamentId);
         }
-        
-        console.log('🔄 Tournament data set successfully');
       } else {
-        console.log('🔄 API response not successful:', response?.data);
         throw new Error(response.data.message || 'Failed to fetch game session data');
       }
     } catch (err) {
       console.error('❌ Error fetching game session data:', err);
       
       if (err.response?.status === 404) {
-        console.log('🔄 Tournament not found (404)');
+      
         setTournamentData(null);
         return;
       }
@@ -151,8 +146,6 @@ const Scoreboard = () => {
         socketRef.current = null;
       }
 
-      console.log('🔌 Connecting to socket.io server at:', config.baseUrl);
-      
       // Create new socket connection
       const socket = io(config.baseUrl, {
         transports: ['websocket', 'polling'],
@@ -168,18 +161,15 @@ const Scoreboard = () => {
 
       // Connection event handlers
       socket.on('connect', () => {
-        console.log('✅ Connected to socket.io server');
+    
         if (isComponentMounted) {
           setIsConnected(true);
           setSocketError(null);
           // Join tournament room using either URL param or active tournament ID
           const tournamentToJoin = tournamentId || activeTournamentId;
           if (tournamentToJoin) {
-            console.log('🏆 Joining tournament:', tournamentToJoin);
             socket.emit('joinTournament', tournamentToJoin);
-          } else {
-            console.log('🏆 No tournament ID available for joining');
-          }
+          } 
         }
       });
 
@@ -203,7 +193,7 @@ const Scoreboard = () => {
       });
 
       socket.on('reconnect', (attemptNumber) => {
-        console.log('🔄 Reconnected after', attemptNumber, 'attempts');
+      
         if (isComponentMounted) {
           const tournamentToJoin = tournamentId || activeTournamentId;
           if (tournamentToJoin) {
@@ -218,62 +208,42 @@ const Scoreboard = () => {
 
       // Tournament event handlers
       socket.on('leaderboardUpdated', (data) => {
-        console.log('📊 Leaderboard updated:', data);
-        console.log('📊 Current tournamentId:', tournamentId);
-        console.log('📊 Active tournamentId:', activeTournamentId);
-        console.log('📊 Event tournamentId:', data?.tournamentId);
+        ('📊 Leaderboard updated:', data);
         
         const currentTournamentId = tournamentId || activeTournamentId;
         const shouldUpdate = !currentTournamentId || data?.tournamentId === currentTournamentId;
         
-        console.log('📊 Should update:', shouldUpdate);
-        console.log('📊 Component mounted:', isComponentMounted);
-        
+  
         if (isComponentMounted && shouldUpdate) {
-          console.log('📊 Calling fetchTournamentData...');
+        
           fetchTournamentData();
-        } else {
-          console.log('📊 Not calling fetchTournamentData - conditions not met');
-        }
+        } 
       });
 
       socket.on('scoreUpdated', (data) => {
-        console.log('🎯 Score updated:', data);
-        console.log('🎯 Current tournamentId:', tournamentId);
-        console.log('🎯 Active tournamentId:', activeTournamentId);
-        console.log('🎯 Event tournamentId:', data?.tournamentId);
-        
+  
         const currentTournamentId = tournamentId || activeTournamentId;
         const shouldUpdate = !currentTournamentId || data?.tournamentId === currentTournamentId;
         
         if (isComponentMounted && shouldUpdate) {
-          console.log('🎯 Calling fetchTournamentData...');
+        
           fetchTournamentData();
-        } else {
-          console.log('🎯 Not calling fetchTournamentData - conditions not met');
-        }
+        } 
       });
 
       socket.on('tournamentUpdated', (data) => {
-        console.log('🏆 Tournament updated:', data);
-        console.log('🏆 Current tournamentId:', tournamentId);
-        console.log('🏆 Active tournamentId:', activeTournamentId);
-        console.log('🏆 Event tournamentId:', data?.tournamentId);
         
         const currentTournamentId = tournamentId || activeTournamentId;
         const shouldUpdate = !currentTournamentId || data?.tournamentId === currentTournamentId;
         
         if (isComponentMounted && shouldUpdate) {
-          console.log('🏆 Calling fetchTournamentData...');
           fetchTournamentData();
-        } else {
-          console.log('🏆 Not calling fetchTournamentData - conditions not met');
-        }
+        } 
       });
 
       // Generic update handler (fallback)
       socket.on('update', (data) => {
-        console.log('🔄 Generic update received:', data);
+    
         if (isComponentMounted) {
           fetchTournamentData();
         }
@@ -315,7 +285,6 @@ const Scoreboard = () => {
       }
       
       if (socketRef.current) {
-        console.log('🧹 Cleaning up socket connection');
         socketRef.current.removeAllListeners();
         socketRef.current.disconnect();
         socketRef.current = null;
@@ -327,7 +296,7 @@ const Scoreboard = () => {
   useEffect(() => {
     if (!isConnected && tournamentData && socketRef.current) {
       const reconnectTimer = setTimeout(() => {
-        console.log('🔄 Attempting to reconnect...');
+  
         if (socketRef.current && !socketRef.current.connected) {
           socketRef.current.connect();
         }

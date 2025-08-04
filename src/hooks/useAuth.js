@@ -19,7 +19,7 @@ export const useAuth = () => {
     }
 
     if (isTokenExpired(token)) {
-      console.log('JWT token expired');
+
       clearAuthToken();
       setUser(null);
       setIsAuthenticated(false);
@@ -57,7 +57,7 @@ export const useAuth = () => {
 
         if (timeUntilExpiration > 0) {
           const timer = setTimeout(() => {
-            console.log('JWT token expired, logging out');
+    
             logout();
           }, timeUntilExpiration);
 

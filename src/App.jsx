@@ -26,14 +26,15 @@ function App() {
             <Route 
               path="/admin-dashboard" 
               element={
-                <ProtectedRoute>
+                // <ProtectedRoute>
                   <AdminDashboard />
-                </ProtectedRoute>
+                // </ProtectedRoute>
               } 
             />
             <Route path="/admin-dashboard-leaderboard" element={<Leaderboard />} />
             <Route path="/scoreboard/:gameId" element={<Scoreboard />} />
             <Route path="/game-setup" element={<GameTemplateWizard />} />
+            <Route path="/game/:gameId" element={<SingleGame />} />
             <Route path="/tournament-leaderboard" element={<TournamentLeaderboard />} />
             <Route path="/tournament-scoring/:tournamentId" element={<TournamentScoring />} />
             <Route path="*" element={<NotFound />} />

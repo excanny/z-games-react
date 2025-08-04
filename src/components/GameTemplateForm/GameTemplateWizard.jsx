@@ -64,9 +64,7 @@ const TournamentWizard = () => {
       setErrors({});
       const newStep = currentStep + 1;
       setCurrentStep(newStep);
-    } else {
-      //console.log('Validation failed, staying on current step');
-    }
+    } 
   };
 
   const prevStep = () => {

@@ -23,18 +23,67 @@ const SingleGame = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Helper function to safely parse JSON strings
+  const safeJSONParse = (jsonString, fallback = []) => {
+    try {
+      return JSON.parse(jsonString || '[]');
+    } catch (error) {
+      console.warn('Failed to parse JSON:', jsonString, error);
+      return fallback;
+    }
+  };
+
+  // Transform API response to match component structure
+  const transformGameData = (apiData) => {
+    return {
+      id: apiData.id,
+      name: apiData.name,
+      gameCode: apiData.id, // Using ID as game code since it's not in the response
+      icon: '🎮', // Default icon since it's not in the API response
+      description: apiData.description,
+      type: apiData.type,
+      rules: safeJSONParse(apiData.rules, []),
+      timeLimit: apiData.time_limit,
+      minPlayers: apiData.min_players,
+      maxPlayers: apiData.max_players,
+      equipment: safeJSONParse(apiData.equipment, []),
+      pointSystem: {
+        winPoints: apiData.win_points,
+        bonusPoints: apiData.bonus_points,
+        penaltyPoints: apiData.penalty_points,
+        customRules: apiData.point_system_custom_rules
+      },
+      applicableSuperpowers: safeJSONParse(apiData.applicable_superpowers, []),
+      prizes: safeJSONParse(apiData.prizes, [])
+    };
+  };
+
   const getGameDetails = async (gameId) => {
     try {
       const response = await axiosClient.get(`/games/${gameId}`);
-      setCurrentGame(response.data.data);
+      
+      // Transform the API response data structure
+      const transformedData = transformGameData(response.data.data);
+      setCurrentGame(transformedData);
     } catch (err) {
       console.error('Error fetching game details:', err);
-      setError(err.message);
+      setError(err.message || 'Failed to load game details');
+      
       // Fallback game data
       setCurrentGame({
         name: `Game ${gameId}`,
         gameCode: gameId,
-        icon: '🎮'
+        icon: '🎮',
+        description: 'Game details could not be loaded.',
+        type: 'unknown',
+        rules: [],
+        timeLimit: 0,
+        minPlayers: 0,
+        maxPlayers: null,
+        equipment: [],
+        pointSystem: null,
+        applicableSuperpowers: [],
+        prizes: []
       });
     }
   };
@@ -98,12 +147,7 @@ const SingleGame = () => {
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
                 {currentGame.icon} <span>{currentGame.name}</span>
               </h1>
-              <p className="mt-2 text-sm text-blue-100">
-                Game Code:  
-                <span className="inline-block bg-blue-800 text-yellow-300 font-mono px-3 py-1 rounded-md shadow-sm ml-2">
-                  {currentGame.gameCode}
-                </span>
-              </p>
+             
             </div>
           </div>
         </div>
@@ -122,7 +166,7 @@ const SingleGame = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
               <h3 className="text-md font-semibold mb-2">Game Type</h3>
-              <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+              <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium capitalize">
                 {currentGame.type}
               </span>
             </div>
@@ -147,14 +191,16 @@ const SingleGame = () => {
           </div>
 
           {/* Rules */}
-          <div className="mb-6">
-            <h3 className="text-md font-semibold mb-2">Rules</h3>
-            <ul className="list-disc list-inside space-y-1 text-gray-700">
-              {currentGame.rules && currentGame.rules.map((rule, index) => (
-                <li key={index}>{rule}</li>
-              ))}
-            </ul>
-          </div>
+          {currentGame.rules && currentGame.rules.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-md font-semibold mb-2">Rules</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-700">
+                {currentGame.rules.map((rule, index) => (
+                  <li key={index}>{rule}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Equipment */}
           {currentGame.equipment && currentGame.equipment.length > 0 && (
@@ -206,7 +252,9 @@ const SingleGame = () => {
                 {currentGame.applicableSuperpowers.map((superpower, index) => (
                   <div key={index} className="bg-gradient-to-r from-purple-100 to-pink-100 border border-purple-200 rounded-lg p-4">
                     <div className="flex items-center gap-3">
-                      <div className="text-2xl">🦁</div>
+                      <div className="text-2xl">
+                        {superpower.animal === 'Lion' ? '🦁' : superpower.animal === 'Tiger' ? '🐅' : '🦸'}
+                      </div>
                       <div>
                         <div className="font-medium text-purple-800">{superpower.animal}</div>
                         <div className="text-sm text-purple-600">{superpower.effect}</div>
