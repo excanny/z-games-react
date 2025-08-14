@@ -47,8 +47,8 @@ const AdminDashboard = () => {
 
     // Tab management
     const tabs = [
-      { id: 'games', label: 'Add Game', icon: '🎮' },
-      { id: 'tournaments', label: 'Add Game Session', icon: '🏆' }
+      { id: 'games', label: 'Games', icon: '🎮' },
+      { id: 'tournaments', label: 'Game Sessions', icon: '🏆' }
     ];
 
     // Update URL hash when tab changes

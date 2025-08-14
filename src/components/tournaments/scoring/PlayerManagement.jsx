@@ -45,8 +45,14 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [editPlayerName, setEditPlayerName] = useState('');
   const [editPlayerAvatar, setEditPlayerAvatar] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // Separate loading states for different operations
+  const [isAddingPlayer, setIsAddingPlayer] = useState(false);
+  const [editingLoadingStates, setEditingLoadingStates] = useState({});
+  const [deletingLoadingStates, setDeletingLoadingStates] = useState({});
+  
   const [error, setError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
   const selectedTeam = teams.find(team => team.id === selectedTeamId);
 
@@ -60,7 +66,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
   const playerRemovedNotification = () => toast.success('Player removed successfully!');
   const errorNotification = (message) => toast.error(message);
 
-  // API call to add player
+  // API call to add player (keeping exactly as original)
   const addPlayerToAPI = async (teamId, playerData) => {
     try {
       const response = await fetch(`${config.baseUrl}/api/tournaments/${tournamentId}/teams/${teamId}/players`, {
@@ -86,7 +92,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
     }
   };
 
-  // API call to update player
+  // API call to update player (keeping exactly as original but removing debugger)
   const updatePlayerInAPI = async (teamId, playerId, playerData) => {
     try {
       const response = await fetch(`${config.baseUrl}/api/tournaments/${tournamentId}/teams/${teamId}/players/${playerId}`, {
@@ -112,7 +118,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
     }
   };
 
-  // API call to remove player
+  // API call to remove player (keeping exactly as original)
   const removePlayerFromAPI = async (teamId, playerId) => {
     try {
       const response = await fetch(`${config.baseUrl}/api/tournaments/${tournamentId}/teams/${teamId}/players/${playerId}`, {
@@ -132,7 +138,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
 
   const handleAddPlayer = async () => {
     if (selectedTeamId && newPlayerName.trim() && newPlayerAvatar) {
-      setIsLoading(true);
+      setIsAddingPlayer(true);
       setError('');
       
       try {
@@ -162,20 +168,33 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
         setError(errorMessage);
         errorNotification(errorMessage);
       } finally {
-        setIsLoading(false);
+        setIsAddingPlayer(false);
       }
     }
   };
 
   const handleEditPlayer = (player) => {
+    debugger
     setEditingPlayer(player.id);
     setEditPlayerName(player.name);
     setEditPlayerAvatar(player.avatar);
+    setError(''); // Clear any existing errors
+  };
+
+  // Check if player data has changed from original
+  const hasPlayerDataChanged = (playerId) => {
+    if (!editingPlayer || editingPlayer !== playerId) return false;
+    const originalPlayer = selectedTeam?.players.find(p => p.id === playerId);
+    if (!originalPlayer) return false;
+    
+    return editPlayerName.trim() !== originalPlayer.name || 
+           editPlayerAvatar !== originalPlayer.avatar;
   };
 
   const handleSavePlayer = async (playerId) => {
+    debugger
     if (editPlayerName.trim() && editPlayerAvatar) {
-      setIsLoading(true);
+      setEditingLoadingStates(prev => ({ ...prev, [playerId]: true }));
       setError('');
 
       try {
@@ -202,13 +221,13 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
         setError(errorMessage);
         errorNotification(errorMessage);
       } finally {
-        setIsLoading(false);
+        setEditingLoadingStates(prev => ({ ...prev, [playerId]: false }));
       }
     }
   };
 
   const handleRemovePlayer = async (teamId, playerId) => {
-    setIsLoading(true);
+    setDeletingLoadingStates(prev => ({ ...prev, [playerId]: true }));
     setError('');
 
     try {
@@ -220,12 +239,13 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
 
       // Show success notification
       playerRemovedNotification();
+      setShowDeleteConfirm(null);
     } catch (error) {
       const errorMessage = 'Failed to remove player. Please try again.';
       setError(errorMessage);
       errorNotification(errorMessage);
     } finally {
-      setIsLoading(false);
+      setDeletingLoadingStates(prev => ({ ...prev, [playerId]: false }));
     }
   };
 
@@ -233,6 +253,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
     setEditingPlayer(null);
     setEditPlayerName('');
     setEditPlayerAvatar('');
+    setError(''); // Clear any errors when canceling
   };
 
   const getAvatarById = (avatarId) => {
@@ -241,12 +262,23 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
 
   // Get available avatars for editing (include current avatar)
   const getAvailableAvatarsForEdit = (currentAvatar) => {
-    const otherUsedAvatars = selectedTeam ? selectedTeam.players
+    if (!selectedTeam) return ANIMAL_AVATARS;
+    
+    const otherUsedAvatars = selectedTeam.players
       .filter(p => p.id !== editingPlayer)
-      .map(p => p.avatar) : [];
+      .map(p => p.avatar);
+    
     return ANIMAL_AVATARS.filter(avatar => 
       !otherUsedAvatars.includes(avatar.id) || avatar.id === currentAvatar
     );
+  };
+
+  const confirmDelete = (teamId, playerId, playerName) => {
+    setShowDeleteConfirm({ teamId, playerId, playerName });
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(null);
   };
 
   return (
@@ -263,13 +295,48 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full">
+            <h4 className="text-lg font-semibold text-gray-800 mb-3">Confirm Delete</h4>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to remove "{showDeleteConfirm.playerName}" from the team?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelDelete}
+                disabled={deletingLoadingStates[showDeleteConfirm.playerId]}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRemovePlayer(showDeleteConfirm.teamId, showDeleteConfirm.playerId)}
+                disabled={deletingLoadingStates[showDeleteConfirm.playerId]}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {deletingLoadingStates[showDeleteConfirm.playerId] ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete Player'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Team Selection */}
       <div>
         <label className="block text-sm font-medium text-orange-700 mb-2">Select Team</label>
         <select
           value={selectedTeamId}
           onChange={(e) => setSelectedTeamId(e.target.value)}
-          disabled={isLoading}
+          disabled={isAddingPlayer}
           className="w-full px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
         >
           <option value="">Choose a team...</option>
@@ -290,13 +357,13 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
               placeholder="Player name..."
               value={newPlayerName}
               onChange={(e) => setNewPlayerName(e.target.value)}
-              disabled={isLoading}
+              disabled={isAddingPlayer}
               className="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
             <select
               value={newPlayerAvatar}
               onChange={(e) => setNewPlayerAvatar(e.target.value)}
-              disabled={isLoading}
+              disabled={isAddingPlayer}
               className="px-3 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Choose an avatar...</option>
@@ -309,10 +376,10 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
           </div>
           <button
             onClick={handleAddPlayer}
-            disabled={!newPlayerName.trim() || !newPlayerAvatar || isLoading}
+            disabled={!newPlayerName.trim() || !newPlayerAvatar || isAddingPlayer}
             className="w-full px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center gap-2"
           >
-            {isLoading ? (
+            {isAddingPlayer ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 Adding...
@@ -335,22 +402,26 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
           </h4>
           {selectedTeam.players.map((player) => {
             const avatar = getAvatarById(player.avatar);
+            const isEditing = editingPlayer === player.id;
+            const isEditingLoading = editingLoadingStates[player.id];
+            const isDeletingLoading = deletingLoadingStates[player.id];
+            
             return (
               <div key={player.id} className="bg-white/80 rounded-lg p-3 border border-orange-200/50">
-                {editingPlayer === player.id ? (
+                {isEditing ? (
                   <div className="space-y-2">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input
                         type="text"
                         value={editPlayerName}
                         onChange={(e) => setEditPlayerName(e.target.value)}
-                        disabled={isLoading}
+                        disabled={isEditingLoading}
                         className="px-2 py-1 border border-orange-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100"
                       />
                       <select
                         value={editPlayerAvatar}
                         onChange={(e) => setEditPlayerAvatar(e.target.value)}
-                        disabled={isLoading}
+                        disabled={isEditingLoading}
                         className="px-2 py-1 border border-orange-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500 disabled:bg-gray-100"
                       >
                         {getAvailableAvatarsForEdit(player.avatar).map((avatar) => (
@@ -363,11 +434,11 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => handleSavePlayer(player.id)}
-                        disabled={isLoading || !editPlayerName.trim() || !editPlayerAvatar}
+                        disabled={isEditingLoading || !editPlayerName.trim() || !hasPlayerDataChanged(player.id)}
                         className="p-1 text-green-600 hover:text-green-700 disabled:text-gray-400 disabled:cursor-not-allowed"
                         title="Save changes"
                       >
-                        {isLoading ? (
+                        {isEditingLoading ? (
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
                         ) : (
                           <Save className="w-4 h-4" />
@@ -375,7 +446,7 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
                       </button>
                       <button
                         onClick={handleCancelEdit}
-                        disabled={isLoading}
+                        disabled={isEditingLoading}
                         className="p-1 text-gray-600 hover:text-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed"
                         title="Cancel edit"
                       >
@@ -395,23 +466,19 @@ const PlayerManagement = ({ teams, onAddPlayer, onRemovePlayer, onUpdatePlayer, 
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleEditPlayer(player)}
-                        disabled={isLoading}
+                        disabled={isEditingLoading || isDeletingLoading || editingPlayer !== null}
                         className="p-1 text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
                         title="Edit player"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleRemovePlayer(selectedTeamId, player.id)}
-                        disabled={isLoading}
+                        onClick={() => confirmDelete(selectedTeamId, player.id, player.name)}
+                        disabled={isEditingLoading || isDeletingLoading || editingPlayer !== null}
                         className="p-1 text-red-600 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed"
                         title="Remove player"
                       >
-                        {isLoading ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Users, ChevronDown, ChevronRight } from 'lucide-react';
 
 const animalEmojis = {
@@ -34,6 +34,51 @@ const TeamCard = ({
   const [showTeamGamePerformance, setShowTeamGamePerformance] = useState(false);
   const [playerDeductionState, setPlayerDeductionState] = useState({});
   const [playerGamePerformanceState, setPlayerGamePerformanceState] = useState({});
+
+  // Calculate dynamic score breakdown - always recalculate from live data
+  const scoreBreakdown = useMemo(() => {
+    let teamOnlyScore = 0;
+    let playersScore = 0;
+
+    // Calculate team-only scores from gameScores
+    if (team.gameScores && Array.isArray(team.gameScores)) {
+      teamOnlyScore = team.gameScores.reduce((sum, gameScore) => {
+        return sum + (gameScore.totalScore || 0);
+      }, 0);
+    }
+
+    // Calculate total players scores by summing each player's game scores
+    if (team.players && Array.isArray(team.players)) {
+      playersScore = team.players.reduce((sum, player) => {
+        if (player.gameScores && Array.isArray(player.gameScores)) {
+          const playerTotal = player.gameScores.reduce((playerSum, gameScore) => {
+            return playerSum + (gameScore.totalScore || 0);
+          }, 0);
+          return sum + playerTotal;
+        }
+        // Fallback to player.totalScore if gameScores not available
+        return sum + (player.totalScore || 0);
+      }, 0);
+    }
+
+    const totalScore = teamOnlyScore + playersScore;
+
+    return {
+      teamOnlyScore,
+      playersScore,
+      totalScore
+    };
+  }, [
+    team.gameScores, 
+    team.players,
+    // Add deep dependencies to ensure recalculation when nested data changes
+    JSON.stringify(team.gameScores?.map(gs => ({ gameId: gs.gameId, totalScore: gs.totalScore, deductions: gs.deductions }))),
+    JSON.stringify(team.players?.map(p => ({ 
+      id: p.id, 
+      totalScore: p.totalScore,
+      gameScores: p.gameScores?.map(gs => ({ gameId: gs.gameId, totalScore: gs.totalScore }))
+    })))
+  ]);
 
   const togglePlayerDeductions = (playerId) => {
     setPlayerDeductionState((prev) => ({
@@ -103,7 +148,9 @@ const TeamCard = ({
             <h4 className="font-semibold text-gray-800">{team.name}</h4>
           </div>
           <div className="text-right">
-            <p className="text-xl font-bold text-blue-600">{team.totalScore || getTeamScores}</p>
+            <p className="text-xl font-bold text-blue-600">
+              {scoreBreakdown.totalScore}
+            </p>
             <p className="text-xs text-gray-500">Total Points</p>
           </div>
         </div>
@@ -116,7 +163,7 @@ const TeamCard = ({
               <div className="flex justify-between items-center">
                 <span className="text-xs text-orange-700 font-medium">Team Bonus</span>
                 <span className="bg-orange-600 text-white rounded-full px-2 py-0.5 text-xs font-bold">
-                  {team.teamOnlyScore || 0}
+                  {scoreBreakdown.teamOnlyScore}
                 </span>
               </div>
             </div>
@@ -124,7 +171,7 @@ const TeamCard = ({
               <div className="flex justify-between items-center">
                 <span className="text-xs text-green-700 font-medium">Players Score</span>
                 <span className="bg-green-600 text-white rounded-full px-2 py-0.5 text-xs font-bold">
-                  {team.playersScore || 0}
+                  {scoreBreakdown.playersScore}
                 </span>
               </div>
             </div>
@@ -241,16 +288,16 @@ const TeamCard = ({
                     <div className="flex items-center space-x-2">
                       <div className="flex items-center space-x-1">
                         <span className="text-sm">
-                          {animalEmojis[player.animal?.name]}
+                          {animalEmojis[player.animal?.name] || '🦸'}
                         </span>
                         <span className="text-xs text-gray-600">
-                          {player.animal?.name}
+                          {player.animal?.name || 'Unknown'}
                         </span>
                       </div>
                       <span className="font-medium text-gray-800">{player.name}</span>
                     </div>
                     <div className="bg-green-500 text-white rounded-full px-3 py-1 text-sm font-bold">
-                      {player.totalScore}
+                      {player.totalScore ?? 0}
                     </div>
                   </div>
 
