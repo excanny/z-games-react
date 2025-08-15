@@ -10,6 +10,152 @@ import NoTournamentFound from './NoTournamentFound';
 import axiosClient from '../utils/axiosClient';
 import config from "../config";
 
+// Cache configuration
+const CACHE_KEY = 'tournament_data_cache';
+const CACHE_DURATION = 30000; // 30 seconds in milliseconds
+
+// Cache utility functions
+const getCachedData = () => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < CACHE_DURATION) {
+        return data;
+      }
+      // Remove expired cache
+      localStorage.removeItem(CACHE_KEY);
+    }
+  } catch (error) {
+    console.warn('Error reading cache:', error);
+    localStorage.removeItem(CACHE_KEY);
+  }
+  return null;
+};
+
+const setCachedData = (data) => {
+  try {
+    const cacheEntry = {
+      data,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheEntry));
+  } catch (error) {
+    console.warn('Error setting cache:', error);
+  }
+};
+
+// Skeleton Loader Components
+const SkeletonBox = ({ className = "", animate = true }) => (
+  <div className={`bg-slate-200 rounded ${animate ? 'animate-pulse' : ''} ${className}`}></div>
+);
+
+const TeamCardSkeleton = React.memo(() => (
+  <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+    {/* Team Header Skeleton */}
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-4">
+        <SkeletonBox className="w-12 h-12 rounded-full" />
+        <div>
+          <SkeletonBox className="h-8 w-48 mb-2" />
+          <SkeletonBox className="h-4 w-32" />
+        </div>
+      </div>
+      <div className="text-right">
+        <SkeletonBox className="h-10 w-24 mb-2" />
+        <SkeletonBox className="h-4 w-20" />
+      </div>
+    </div>
+
+    {/* Progress Bar Skeleton */}
+    <div className="mb-4">
+      <SkeletonBox className="w-full h-3 rounded-full mb-2" />
+      <div className="flex justify-between items-center">
+        <SkeletonBox className="h-3 w-32" />
+        <SkeletonBox className="h-6 w-24 rounded-full" />
+      </div>
+    </div>
+
+    {/* Content Area Skeleton */}
+    <div className="space-y-4">
+      <SkeletonBox className="h-32 rounded-xl" />
+      <SkeletonBox className="h-24 rounded-xl" />
+      <SkeletonBox className="h-40 rounded-xl" />
+    </div>
+  </div>
+));
+
+const TournamentInfoSkeleton = React.memo(() => (
+  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
+    <div className="text-center">
+      <SkeletonBox className="h-10 w-64 mx-auto mb-4" />
+      <SkeletonBox className="h-6 w-48 mx-auto mb-6" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="text-center">
+            <SkeletonBox className="h-12 w-12 rounded-full mx-auto mb-2" />
+            <SkeletonBox className="h-8 w-16 mx-auto mb-2" />
+            <SkeletonBox className="h-4 w-24 mx-auto" />
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+));
+
+const StatsCardsSkeleton = React.memo(() => (
+  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    {[1, 2, 3, 4].map(i => (
+      <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+        <div className="flex items-center gap-3 mb-4">
+          <SkeletonBox className="w-10 h-10 rounded-lg" />
+          <SkeletonBox className="h-5 w-24" />
+        </div>
+        <SkeletonBox className="h-8 w-16 mb-2" />
+        <SkeletonBox className="h-4 w-32" />
+      </div>
+    ))}
+  </div>
+));
+
+const ScoreboardSkeleton = React.memo(() => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    {/* Header Skeleton */}
+    <div className="bg-white border-b border-slate-200 px-6 py-4">
+      <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <SkeletonBox className="h-8 w-48" />
+        <SkeletonBox className="h-6 w-24 rounded-full" />
+      </div>
+    </div>
+
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      {/* Tournament Info Skeleton */}
+      <TournamentInfoSkeleton />
+
+      {/* Stats Cards Skeleton */}
+      <StatsCardsSkeleton />
+
+      {/* Team Rankings Skeleton */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+        <div className="bg-gradient-to-r from-indigo-900 to-purple-800 px-8 py-6">
+          <div className="flex items-center justify-center gap-2">
+            <Trophy className="w-6 h-6 text-white" />
+            <h3 className="text-2xl font-bold text-white">Team Rankings</h3>
+          </div>
+        </div>
+        
+        <div className="p-6">
+          <div className="space-y-6">
+            {[1, 2, 3].map(i => (
+              <TeamCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+));
+
 const Scoreboard = () => {
   const [tournamentData, setTournamentData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,23 +204,25 @@ const Scoreboard = () => {
     });
   }, []);
 
-  // Debounced fetch function to prevent rapid API calls
-  const debouncedFetchTournamentData = useCallback(
-    (() => {
-      let timeoutId;
-      return () => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(fetchTournamentData, 300);
-      };
-    })(),
-    []
-  );
-
-  // Optimized fetch function with better error handling and timeouts
-  const fetchTournamentData = useCallback(async () => {
+  // Optimized fetch function with caching
+  const fetchTournamentData = useCallback(async (bypassCache = false) => {
     // Clear any existing timeout
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
+    }
+
+    // Try to get cached data first (unless bypassing cache)
+    if (!bypassCache) {
+      const cachedData = getCachedData();
+      if (cachedData) {
+        console.log('📋 Using cached tournament data');
+        setTournamentData(cachedData);
+        
+        if (cachedData?.tournamentId) {
+          setActiveTournamentId(cachedData.tournamentId);
+        }
+        return;
+      }
     }
 
     try {
@@ -85,6 +233,7 @@ const Scoreboard = () => {
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       fetchTimeoutRef.current = timeoutId;
 
+      console.log('🌐 Fetching fresh tournament data from API');
       const response = await axiosClient.get('/tournaments/leaderboard', {
         signal: controller.signal
       });
@@ -92,10 +241,14 @@ const Scoreboard = () => {
       clearTimeout(timeoutId);
     
       if (response?.data?.success) {
-        setTournamentData(response.data.data);
+        const freshData = response.data.data;
+        setTournamentData(freshData);
         
-        if (response.data.data?.tournamentId) {
-          setActiveTournamentId(response.data.data.tournamentId);
+        // Cache the fresh data
+        setCachedData(freshData);
+        
+        if (freshData?.tournamentId) {
+          setActiveTournamentId(freshData.tournamentId);
         }
       } else {
         throw new Error(response.data.message || 'Failed to fetch tournament data');
@@ -125,6 +278,18 @@ const Scoreboard = () => {
       }
     }
   }, []);
+
+  // Debounced fetch function with cache bypass option
+  const debouncedFetchTournamentData = useCallback(
+    (() => {
+      let timeoutId;
+      return (bypassCache = true) => { // Default to bypassing cache for real-time updates
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fetchTournamentData(bypassCache), 300);
+      };
+    })(),
+    [fetchTournamentData]
+  );
 
   // Memoized helper functions to prevent recalculation on every render
   const getProgressBarColor = useCallback((rank) => {
@@ -283,7 +448,8 @@ const Scoreboard = () => {
         }
       }, 5000); // Reduced from 10000
       
-      await fetchTournamentData();
+      // Try cache first for faster initial load
+      await fetchTournamentData(false); // false = don't bypass cache
       
       if (isComponentMounted) {
         setLoading(false);
@@ -623,7 +789,10 @@ const Scoreboard = () => {
   ));
 
   // Early returns for loading and error states
-  if (loading) return <LoadingSpinner longLoading={longLoading} />;
+  if (loading) {
+    // Show skeleton loader instead of spinner for better UX
+    return <ScoreboardSkeleton />;
+  }
   if (error) return <ErrorDisplay error={error} />;
   if (tournamentData?.leaderboard?.length === 0) return <NoTournamentFound />;
 

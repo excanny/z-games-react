@@ -35,21 +35,77 @@ const Games = () => {
     // Add your game selection logic here
   };
 
-  // Loading state
+  // Skeleton Card Component
+  const SkeletonCard = () => (
+    <div className="group bg-white rounded-3xl shadow-2xl overflow-hidden">
+      <div className="p-8">
+        {/* Header Skeleton */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 bg-gray-200 rounded-lg animate-pulse"></div>
+            <div className="h-8 bg-gray-200 rounded-lg animate-pulse flex-1"></div>
+          </div>
+          
+          {/* Description Section Skeleton */}
+          <div className="space-y-6">
+            <div>
+              <div className="h-6 bg-gray-200 rounded-lg animate-pulse mb-3 w-1/3"></div>
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-full"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-5/6"></div>
+                <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Button Skeleton */}
+        <div className="h-14 bg-gray-200 rounded-2xl animate-pulse"></div>
+      </div>
+    </div>
+  );
+
+  // Loading state with skeleton cards
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 p-8">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-12">
-            <h1 className="text-5xl font-bold text-white mb-4 flex items-center gap-4">
-              🎮 Games
-            </h1>
-          </div>
-          <div className="flex items-center justify-center py-32">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-              <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-blue-200 rounded-full animate-spin animate-reverse opacity-60"></div>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-12">
+            <div>
+              <h1 className="text-5xl font-bold text-white mb-4 flex items-center gap-4">
+                🎮 Games
+              </h1>
+              <p className="text-blue-100 text-xl">Discover and play amazing games</p>
             </div>
+            <div className="flex items-center gap-3">
+              <Link 
+                to="/" 
+                className="group px-6 py-3 bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 rounded-2xl transition-all duration-300 flex items-center gap-3 hover:shadow-lg"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="font-medium">Home</span>
+              </Link>
+              <button 
+                onClick={fetchGames}
+                disabled
+                className="group px-6 py-3 bg-white/10 backdrop-blur-sm border border-white/20 text-white/60 rounded-2xl transition-all duration-300 flex items-center gap-3 cursor-not-allowed"
+              >
+                <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span className="font-medium">Loading...</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Skeleton Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[...Array(6)].map((_, index) => (
+              <SkeletonCard key={index} />
+            ))}
           </div>
         </div>
       </div>
