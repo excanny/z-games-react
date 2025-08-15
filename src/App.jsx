@@ -11,6 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import GameTemplateWizard from './components/GameTemplateForm/GameTemplateWizard';
 import TournamentLeaderboard from './components/TournamentLeaderboard';
 import TournamentScoring from './components/tournaments/scoring/TournamentScoring';
+import Games from './components/Games';
 
 function App() {
 
@@ -23,6 +24,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Scoreboard />} />
             <Route path="/admin-login" element={<AdminLogin />} />
+             <Route path="/games" element={<Games />} />
             <Route 
               path="/admin-dashboard" 
               element={
