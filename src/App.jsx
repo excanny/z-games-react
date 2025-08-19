@@ -23,7 +23,7 @@ function App() {
         <main className="main-content">
           <Routes>
             {/* <Route path="/" element={<Scoreboard />} /> */}
-             <Route path="/" element={<Games />} />
+             <Route path="/" element={<AdminLogin />} />
             <Route path="/admin-login" element={<AdminLogin />} />
              <Route path="/games" element={<Games />} />
             <Route 
