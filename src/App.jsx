@@ -12,6 +12,7 @@ import GameTemplateWizard from './components/GameTemplateForm/GameTemplateWizard
 import TournamentLeaderboard from './components/TournamentLeaderboard';
 import TournamentScoring from './components/tournaments/scoring/TournamentScoring';
 import Games from './components/Games';
+import FrontPage from './components/FrontPage';
 
 function App() {
 
@@ -22,8 +23,8 @@ function App() {
        
         <main className="main-content">
           <Routes>
-            {/* <Route path="/" element={<Scoreboard />} /> */}
-             <Route path="/" element={<AdminLogin />} />
+            <Route path="/" element={<FrontPage />} />
+             {/* <Route path="/" element={<Games />} /> */}
             <Route path="/admin-login" element={<AdminLogin />} />
              <Route path="/games" element={<Games />} />
             <Route 
